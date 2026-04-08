@@ -1,0 +1,41 @@
+{
+  "name": "tdd-workflow",
+  "version": "1.0.0",
+  "description": "TDD Workflow CLI — install TDD skills for AI coding tools",
+  "type": "module",
+  "bin": {
+    "tdd-workflow": "./bin/tdd.js"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "skills/"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "tdd",
+    "workflow",
+    "ai",
+    "claude",
+    "cursor",
+    "copilot",
+    "skills"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.0",
+    "chalk": "^5.4.0",
+    "@inquirer/prompts": "^7.5.0",
+    "ora": "^8.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "@types/node": "^22.0.0"
+  }
+}
