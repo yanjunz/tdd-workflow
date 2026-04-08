@@ -42,6 +42,13 @@ export const SUPPORTED_TOOLS: AITool[] = [
     commandsDir: '.windsurf/commands/tdd',
   },
   {
+    id: 'codebuddy',
+    name: 'CodeBuddy',
+    markerDir: '.codebuddy',
+    skillsDir: '.codebuddy/skills/tdd-workflow',
+    commandsDir: '.codebuddy/commands/tdd',
+  },
+  {
     id: 'copilot',
     name: 'GitHub Copilot',
     markerDir: '.github',

@@ -16,7 +16,7 @@ program
 program
   .command('init')
   .description('Initialize TDD workflow in the current project')
-  .option('--tools <tools>', 'Comma-separated list of tools (claude,cursor,cline,windsurf,copilot)')
+  .option('--tools <tools>', 'Comma-separated list of tools (claude,cursor,cline,windsurf,codebuddy,copilot)')
   .option('--delivery <mode>', 'Installation mode: skills, commands, or both', 'both')
   .option('--force', 'Overwrite existing files', false)
   .action(async (opts: { tools?: string; delivery: string; force: boolean }) => {
