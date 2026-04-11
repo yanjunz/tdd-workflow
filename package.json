@@ -4,7 +4,7 @@
   "description": "TDD Workflow CLI — install TDD skills for AI coding tools",
   "type": "module",
   "bin": {
-    "tdd-workflow": "./bin/tdd.js"
+    "tdd-workflow": "bin/tdd.js"
   },
   "files": [
     "bin/",
@@ -27,6 +27,7 @@
     "copilot",
     "skills"
   ],
+  "author": "yjzhuang",
   "license": "MIT",
   "dependencies": {
     "commander": "^14.0.0",
