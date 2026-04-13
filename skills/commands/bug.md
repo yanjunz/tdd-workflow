@@ -67,6 +67,13 @@ After finding root cause, update Issue document's "Root Cause Analysis" section.
 
 ### 5. Write Reproduction Test (RED)
 
+Set harness to RED phase:
+```bash
+if [ -f tdd-specs/.harness ]; then
+  sed -i '' 's/phase=.*/phase=red/' tdd-specs/.harness
+fi
+```
+
 Choose test layer based on bug type:
 
 | Bug Type | Preferred Test Layer |
@@ -79,6 +86,13 @@ Run using project's actual test command to verify test fails (RED).
 Confirm failure is because "bug exists" not "test is wrong".
 
 ### 6. Fix Code (GREEN)
+
+Set harness to GREEN phase:
+```bash
+if [ -f tdd-specs/.harness ]; then
+  sed -i '' 's/phase=.*/phase=green/' tdd-specs/.harness
+fi
+```
 
 Write minimum code to pass, following project's existing conventions:
 

@@ -11,6 +11,10 @@ Phase 3: E2E acceptance tests.
 
 1. **Detect project E2E framework**
    ```bash
+   # Set harness phase to e2e
+   if [ -f tdd-specs/.harness ]; then
+     sed -i '' 's/phase=.*/phase=e2e/' tdd-specs/.harness
+   fi
    grep -E '"playwright"|"cypress"|"selenium"|"puppeteer"' package.json 2>/dev/null || true
    ls tests/e2e/ e2e/ playwright.config.* cypress.config.* 2>/dev/null || true
    ```

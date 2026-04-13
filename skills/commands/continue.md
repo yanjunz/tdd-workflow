@@ -27,9 +27,9 @@ Resume in-progress feature.
    cat tdd-specs/$SPEC/tasks.md
    ```
 
-3. **Find first incomplete task**
-   - `[ ]` -> Start from `/tdd:red`
-   - `[~]` -> Start from `/tdd:green` (test written, implementation incomplete)
+3. **Find first incomplete task and set harness phase**
+   - `[ ]` -> Set phase to red: `sed -i '' 's/phase=.*/phase=red/' tdd-specs/.harness` -> Start from `/tdd:red`
+   - `[~]` -> Set phase to green: `sed -i '' 's/phase=.*/phase=green/' tdd-specs/.harness` -> Start from `/tdd:green` (test written, implementation incomplete)
    - `[!]` -> Start from blocked decision (Three-Strike Protocol pending)
 
 4. **Output recovery summary**

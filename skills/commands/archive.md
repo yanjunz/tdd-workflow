@@ -23,6 +23,7 @@ Archive completed specs.
    mkdir -p tdd-specs/archive/$MONTH
    mv tdd-specs/$SPEC tdd-specs/archive/$MONTH/
    echo "" > tdd-specs/.current
+   rm -f tdd-specs/.harness
    echo "OK Archived to tdd-specs/archive/$MONTH/$SPEC/"
    ```
 

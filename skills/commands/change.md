@@ -16,6 +16,10 @@ Mid-course requirement change flow. Safely modify requirements during Phase 2 or
    SPEC=$(cat tdd-specs/.current 2>/dev/null || echo "")
    if [ -z "$SPEC" ]; then echo "ERROR: No active spec, run /tdd:new first"; exit 1; fi
    echo "Current spec: $SPEC"
+   # Pause harness during change analysis
+   if [ -f tdd-specs/.harness ]; then
+     sed -i '' 's/phase=.*/phase=spec/' tdd-specs/.harness
+   fi
    cat tdd-specs/$SPEC/tasks.md
    ```
 

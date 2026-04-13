@@ -11,6 +11,10 @@ hooks:
     - hooks:
         - type: command
           command: |
+            if [ -f tdd-specs/.harness ]; then
+              . tdd-specs/.harness 2>/dev/null
+              echo "[tdd-harness] Phase: ${phase:-idle} | Task: ${task:-none} | Strikes: ${strikes:-0}"
+            fi
             if [ -f tdd-specs/.current ]; then
               SPEC=$(cat tdd-specs/.current 2>/dev/null)
               if [ -n "$SPEC" ] && [ -d "tdd-specs/$SPEC" ]; then
@@ -19,24 +23,83 @@ hooks:
               fi
             fi
   PreToolUse:
-    - matcher: "Write|Edit|Bash"
+    - matcher: "Write|Edit"
       hooks:
         - type: command
           command: |
-            if [ -f tdd-specs/.current ]; then
-              SPEC=$(cat tdd-specs/.current 2>/dev/null)
-              if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/tasks.md" ]; then
-                grep -E "^\- \[(x|~| |!)\]" "tdd-specs/$SPEC/tasks.md" 2>/dev/null | head -15 || true
+            if [ ! -f tdd-specs/.harness ]; then exit 0; fi
+            . tdd-specs/.harness 2>/dev/null
+            FILE="$CLAUDE_FILE_PATH"
+            if [ -z "$FILE" ]; then exit 0; fi
+            if [ "$phase" = "red" ]; then
+              if echo "$FILE" | grep -qE '(test|spec|__tests__|\.test\.|\.spec\.|_test\.go|_test\.py|Test\.java)'; then
+                exit 0
+              fi
+              if echo "$FILE" | grep -q 'tdd-specs/'; then
+                exit 0
+              fi
+              echo "BLOCKED: RED phase — write a failing test first, not implementation code. File: $FILE" >&2
+              exit 2
+            fi
+            exit 0
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: |
+            if [ ! -f tdd-specs/.harness ]; then exit 0; fi
+            . tdd-specs/.harness 2>/dev/null
+            if [ -n "$last_edit_time" ] && [ -n "$last_test_time" ]; then
+              if [ "$last_edit_time" -gt "$last_test_time" ] 2>/dev/null; then
+                echo "[tdd-harness] Reminder: code changed since last test run"
               fi
             fi
+            exit 0
   PostToolUse:
     - matcher: "Write|Edit"
       hooks:
         - type: command
           command: |
+            if [ -f tdd-specs/.harness ]; then
+              TS=$(date +%s)
+              if grep -q "last_edit_time=" tdd-specs/.harness; then
+                sed -i '' "s/last_edit_time=.*/last_edit_time=$TS/" tdd-specs/.harness
+              else
+                echo "last_edit_time=$TS" >> tdd-specs/.harness
+              fi
+            fi
             if [ -f tdd-specs/.current ]; then
               SPEC=$(cat tdd-specs/.current 2>/dev/null)
-              [ -n "$SPEC" ] && echo "[tdd-workflow] Please sync tdd-specs/$SPEC/tasks.md task status."
+              [ -n "$SPEC" ] && echo "[tdd-harness] Sync tdd-specs/$SPEC/tasks.md"
+            fi
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: |
+            if [ ! -f tdd-specs/.harness ]; then exit 0; fi
+            if echo "$CLAUDE_TOOL_INPUT" | grep -qE '"command".*\b(test|jest|vitest|pytest|go test|cargo test|mocha|npm test|npx test)\b'; then
+              TS=$(date +%s)
+              if grep -q "last_test_time=" tdd-specs/.harness; then
+                sed -i '' "s/last_test_time=.*/last_test_time=$TS/" tdd-specs/.harness
+              else
+                echo "last_test_time=$TS" >> tdd-specs/.harness
+              fi
+              . tdd-specs/.harness 2>/dev/null
+              if echo "$CLAUDE_TOOL_OUTPUT" | grep -qiE 'FAIL|FAILED|ERROR|failures'; then
+                echo "[tdd-harness] Tests FAILED"
+                if [ "$phase" = "red" ]; then
+                  echo "[tdd-harness] Good — test fails as expected (RED). Write implementation to make it pass (GREEN)."
+                fi
+                if [ "$phase" = "green" ]; then
+                  strikes=$((${strikes:-0} + 1))
+                  sed -i '' "s/strikes=.*/strikes=$strikes/" tdd-specs/.harness
+                  if [ "$strikes" -ge 3 ]; then
+                    echo "[tdd-harness] THREE-STRIKE PROTOCOL — same test failed 3 times. Stop and ask user for decision."
+                  fi
+                fi
+              else
+                echo "[tdd-harness] Tests PASSED"
+                sed -i '' "s/strikes=.*/strikes=0/" tdd-specs/.harness
+              fi
             fi
 metadata:
   version: "2.0.0"

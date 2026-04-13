@@ -9,7 +9,14 @@ Phase 4: Delivery verification. Every check must pass before continuing.
 
 **Steps**
 
-0. **Compilation verification (mandatory for compiled languages)**
+0. **Set harness phase and compilation verification**
+
+   ```bash
+   # Set harness phase to deliver
+   if [ -f tdd-specs/.harness ]; then
+     sed -i '' 's/phase=.*/phase=deliver/' tdd-specs/.harness
+   fi
+   ```
 
    If project has compilation step (TypeScript, Java, Go, Rust, etc.), check if source is newer than artifacts:
    ```bash
