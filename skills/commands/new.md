@@ -38,7 +38,7 @@ Start new feature TDD workflow.
    ```bash
    mkdir -p tdd-specs/<name>
    echo "<name>" > tdd-specs/.current
-   echo "phase=requirements\ntask=\nstrikes=0\nlast_test_time=0\nlast_edit_time=0" > tdd-specs/.harness
+   printf 'phase=requirements\ntask=\nstrikes=0\nlast_test_time=0\nlast_edit_time=0\n' > tdd-specs/<name>/.harness
    ```
 
 4. **Stop, wait for user direction**

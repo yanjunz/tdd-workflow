@@ -69,8 +69,9 @@ After finding root cause, update Issue document's "Root Cause Analysis" section.
 
 Set harness to RED phase:
 ```bash
-if [ -f tdd-specs/.harness ]; then
-  sed -i '' 's/phase=.*/phase=red/' tdd-specs/.harness
+SPEC=$(cat tdd-specs/.current 2>/dev/null)
+if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/.harness" ]; then
+  sed -i '' 's/phase=.*/phase=red/' "tdd-specs/$SPEC/.harness"
 fi
 ```
 
@@ -89,8 +90,9 @@ Confirm failure is because "bug exists" not "test is wrong".
 
 Set harness to GREEN phase:
 ```bash
-if [ -f tdd-specs/.harness ]; then
-  sed -i '' 's/phase=.*/phase=green/' tdd-specs/.harness
+SPEC=$(cat tdd-specs/.current 2>/dev/null)
+if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/.harness" ]; then
+  sed -i '' 's/phase=.*/phase=green/' "tdd-specs/$SPEC/.harness"
 fi
 ```
 

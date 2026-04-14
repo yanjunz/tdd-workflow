@@ -11,24 +11,24 @@ hooks:
     - hooks:
         - type: command
           command: |
-            if [ -f tdd-specs/.harness ]; then
-              . tdd-specs/.harness 2>/dev/null
+            SPEC=$(cat tdd-specs/.current 2>/dev/null)
+            if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/.harness" ]; then
+              . "tdd-specs/$SPEC/.harness" 2>/dev/null
               echo "[tdd-harness] Phase: ${phase:-idle} | Task: ${task:-none} | Strikes: ${strikes:-0}"
             fi
-            if [ -f tdd-specs/.current ]; then
-              SPEC=$(cat tdd-specs/.current 2>/dev/null)
-              if [ -n "$SPEC" ] && [ -d "tdd-specs/$SPEC" ]; then
-                echo "[tdd-workflow] Active spec: $SPEC"
-                grep -E "^(##|\- \[)" "tdd-specs/$SPEC/tasks.md" 2>/dev/null | head -20 || true
-              fi
+            if [ -n "$SPEC" ] && [ -d "tdd-specs/$SPEC" ]; then
+              echo "[tdd-workflow] Active spec: $SPEC"
+              grep -E "^(##|\- \[)" "tdd-specs/$SPEC/tasks.md" 2>/dev/null | head -20 || true
             fi
   PreToolUse:
     - matcher: "Write|Edit"
       hooks:
         - type: command
           command: |
-            if [ ! -f tdd-specs/.harness ]; then exit 0; fi
-            . tdd-specs/.harness 2>/dev/null
+            SPEC=$(cat tdd-specs/.current 2>/dev/null)
+            H="tdd-specs/$SPEC/.harness"
+            if [ -z "$SPEC" ] || [ ! -f "$H" ]; then exit 0; fi
+            . "$H" 2>/dev/null
             FILE="$CLAUDE_FILE_PATH"
             if [ -z "$FILE" ]; then exit 0; fi
             if [ "$phase" = "red" ]; then
@@ -46,8 +46,10 @@ hooks:
       hooks:
         - type: command
           command: |
-            if [ ! -f tdd-specs/.harness ]; then exit 0; fi
-            . tdd-specs/.harness 2>/dev/null
+            SPEC=$(cat tdd-specs/.current 2>/dev/null)
+            H="tdd-specs/$SPEC/.harness"
+            if [ -z "$SPEC" ] || [ ! -f "$H" ]; then exit 0; fi
+            . "$H" 2>/dev/null
             if [ -n "$last_edit_time" ] && [ -n "$last_test_time" ]; then
               if [ "$last_edit_time" -gt "$last_test_time" ] 2>/dev/null; then
                 echo "[tdd-harness] Reminder: code changed since last test run"
@@ -59,31 +61,34 @@ hooks:
       hooks:
         - type: command
           command: |
-            if [ -f tdd-specs/.harness ]; then
+            SPEC=$(cat tdd-specs/.current 2>/dev/null)
+            H="tdd-specs/$SPEC/.harness"
+            if [ -n "$SPEC" ] && [ -f "$H" ]; then
               TS=$(date +%s)
-              if grep -q "last_edit_time=" tdd-specs/.harness; then
-                sed -i '' "s/last_edit_time=.*/last_edit_time=$TS/" tdd-specs/.harness
+              if grep -q "last_edit_time=" "$H"; then
+                sed -i '' "s/last_edit_time=.*/last_edit_time=$TS/" "$H"
               else
-                echo "last_edit_time=$TS" >> tdd-specs/.harness
+                echo "last_edit_time=$TS" >> "$H"
               fi
             fi
-            if [ -f tdd-specs/.current ]; then
-              SPEC=$(cat tdd-specs/.current 2>/dev/null)
-              [ -n "$SPEC" ] && echo "[tdd-harness] Sync tdd-specs/$SPEC/tasks.md"
+            if [ -n "$SPEC" ]; then
+              echo "[tdd-harness] Sync tdd-specs/$SPEC/tasks.md"
             fi
     - matcher: "Bash"
       hooks:
         - type: command
           command: |
-            if [ ! -f tdd-specs/.harness ]; then exit 0; fi
+            SPEC=$(cat tdd-specs/.current 2>/dev/null)
+            H="tdd-specs/$SPEC/.harness"
+            if [ -z "$SPEC" ] || [ ! -f "$H" ]; then exit 0; fi
             if echo "$CLAUDE_TOOL_INPUT" | grep -qE '"command".*\b(test|jest|vitest|pytest|go test|cargo test|mocha|npm test|npx test)\b'; then
               TS=$(date +%s)
-              if grep -q "last_test_time=" tdd-specs/.harness; then
-                sed -i '' "s/last_test_time=.*/last_test_time=$TS/" tdd-specs/.harness
+              if grep -q "last_test_time=" "$H"; then
+                sed -i '' "s/last_test_time=.*/last_test_time=$TS/" "$H"
               else
-                echo "last_test_time=$TS" >> tdd-specs/.harness
+                echo "last_test_time=$TS" >> "$H"
               fi
-              . tdd-specs/.harness 2>/dev/null
+              . "$H" 2>/dev/null
               if echo "$CLAUDE_TOOL_OUTPUT" | grep -qiE 'FAIL|FAILED|ERROR|failures'; then
                 echo "[tdd-harness] Tests FAILED"
                 if [ "$phase" = "red" ]; then
@@ -91,14 +96,14 @@ hooks:
                 fi
                 if [ "$phase" = "green" ]; then
                   strikes=$((${strikes:-0} + 1))
-                  sed -i '' "s/strikes=.*/strikes=$strikes/" tdd-specs/.harness
+                  sed -i '' "s/strikes=.*/strikes=$strikes/" "$H"
                   if [ "$strikes" -ge 3 ]; then
                     echo "[tdd-harness] THREE-STRIKE PROTOCOL — same test failed 3 times. Stop and ask user for decision."
                   fi
                 fi
               else
                 echo "[tdd-harness] Tests PASSED"
-                sed -i '' "s/strikes=.*/strikes=0/" tdd-specs/.harness
+                sed -i '' "s/strikes=.*/strikes=0/" "$H"
               fi
             fi
 metadata:

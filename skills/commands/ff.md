@@ -15,8 +15,9 @@ Fast-forward: generate requirements -> design -> tasks in one shot.
    ```bash
    cat tdd-specs/.current 2>/dev/null || echo "No active spec"
    # Set harness phase to spec
-   if [ -f tdd-specs/.harness ]; then
-     sed -i '' 's/phase=.*/phase=spec/' tdd-specs/.harness
+   SPEC=$(cat tdd-specs/.current 2>/dev/null)
+   if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/.harness" ]; then
+     sed -i '' 's/phase=.*/phase=spec/' "tdd-specs/$SPEC/.harness"
    fi
    ```
    If no active spec, first run `/tdd:new`.

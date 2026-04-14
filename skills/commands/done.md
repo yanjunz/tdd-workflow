@@ -13,8 +13,9 @@ Phase 4: Delivery verification. Every check must pass before continuing.
 
    ```bash
    # Set harness phase to deliver
-   if [ -f tdd-specs/.harness ]; then
-     sed -i '' 's/phase=.*/phase=deliver/' tdd-specs/.harness
+   SPEC=$(cat tdd-specs/.current 2>/dev/null)
+   if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/.harness" ]; then
+     sed -i '' 's/phase=.*/phase=deliver/' "tdd-specs/$SPEC/.harness"
    fi
    ```
 

@@ -30,20 +30,20 @@ Auto TDD cycle until `tasks.md` Phase 2 is all `[x]`.
 3. **Loop: pick next `[ ]` or `[~]` Phase 2 task**
 
    **RED phase**:
-   - **Set harness phase**: `sed -i '' 's/phase=.*/phase=red/' tdd-specs/.harness`
+   - **Set harness phase**: `SPEC=$(cat tdd-specs/.current); sed -i '' 's/phase=.*/phase=red/' "tdd-specs/$SPEC/.harness"`
    - Write one failing test (one at a time, test behavior not mocks)
    - Run immediately to verify failure (using project's actual test command)
    - Confirm failure is "feature not implemented", mark task `[~]`
 
    **GREEN phase**:
-   - **Set harness phase**: `sed -i '' 's/phase=.*/phase=green/' tdd-specs/.harness`
+   - **Set harness phase**: `SPEC=$(cat tdd-specs/.current); sed -i '' 's/phase=.*/phase=green/' "tdd-specs/$SPEC/.harness"`
    - Check Issues first (if project has issues directory)
    - Write minimum code to pass
    - Run full suite to confirm no regressions
    - Mark task `[x]`
 
    **REFACTOR phase**:
-   - **Set harness phase**: `sed -i '' 's/phase=.*/phase=refactor/' tdd-specs/.harness`
+   - **Set harness phase**: `SPEC=$(cat tdd-specs/.current); sed -i '' 's/phase=.*/phase=refactor/' "tdd-specs/$SPEC/.harness"`
    - Eliminate duplication, improve naming
    - Run tests after each change to stay green
    - Follow project's existing conventions

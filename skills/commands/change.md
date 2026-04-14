@@ -17,8 +17,8 @@ Mid-course requirement change flow. Safely modify requirements during Phase 2 or
    if [ -z "$SPEC" ]; then echo "ERROR: No active spec, run /tdd:new first"; exit 1; fi
    echo "Current spec: $SPEC"
    # Pause harness during change analysis
-   if [ -f tdd-specs/.harness ]; then
-     sed -i '' 's/phase=.*/phase=spec/' tdd-specs/.harness
+   if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/.harness" ]; then
+     sed -i '' 's/phase=.*/phase=spec/' "tdd-specs/$SPEC/.harness"
    fi
    cat tdd-specs/$SPEC/tasks.md
    ```
