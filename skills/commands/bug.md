@@ -112,12 +112,57 @@ Fill in remaining sections:
 - **Root Cause Analysis**: Complete cause chain (code + arrow diagram)
 - **Fix**: File change table + core diff
 - **Verification Steps**: Executable commands
-- **Prevention Measures**: Principles to avoid similar issues (consider adding to project docs)
 - **Status**: Change to `Fixed`
 
 Update `docs/issues/README.md` status column.
 
-### 8. Run E2E Verification (if feature involves UI or end-to-end flow)
+### 8. Retrospective (mandatory — cannot skip)
+
+Every bug deserves a "why did this happen" analysis, not just a fix. Complete the **Prevention** section of the Issue document:
+
+**8.1 Classify the root cause:**
+
+| Category | Example | Typical Action |
+|----------|---------|----------------|
+| Design gap | No idempotency considered | Update design.md, add architectural constraint |
+| Missing test | Boundary value not tested | Add test case category to tasks.md template |
+| Code pattern | Used `>` instead of `>=` | Add lint rule or code review checklist item |
+| Knowledge gap | Didn't know DB has VARCHAR limit | Document in project knowledge base |
+| Process gap | Skipped regression before merge | Update CI pipeline or delivery checklist |
+
+**8.2 Write concrete prevention measures** (at least one per bug):
+
+```markdown
+## Prevention
+
+### Root Cause Category
+<one of: design gap / missing test / code pattern / knowledge gap / process gap>
+
+### Why It Happened
+<2-3 sentences: what assumption was wrong, what was overlooked, why existing tests didn't catch it>
+
+### Prevention Actions
+- [ ] <concrete action 1 — e.g., "Add boundary value tests for all field length limits">
+- [ ] <concrete action 2 — e.g., "Add eslint rule: no bare > comparison for length checks">
+
+### Applied To
+<where the prevention was actually implemented — file paths, rule names, checklist items>
+```
+
+**8.3 Execute at least one prevention action immediately:**
+- If it's a test gap → add the test right now (not "later")
+- If it's a lint rule → add the rule right now
+- If it's a design pattern → document it in project docs right now
+- If it's a checklist item → add it to `/tdd:done` checklist or CI config
+
+**8.4 Search for similar patterns in codebase:**
+```bash
+# Look for the same mistake elsewhere
+grep -rn "<buggy-pattern>" src/ --include="*.ts" --include="*.js" --include="*.py" 2>/dev/null | grep -v test
+```
+If found, fix them now or create tasks for each occurrence.
+
+### 9. Run E2E Verification (if feature involves UI or end-to-end flow)
 
 Run related test suite using project's actual E2E command.
 
@@ -128,10 +173,11 @@ Run related test suite using project's actual E2E command.
 Output status line after each phase:
 
 ```
-[Analysis] Root cause: <one-liner>
-[RED]      Test written, failure reason: <error message>
-[GREEN]    Fix complete, tests passing
-[Done]     Issue #NNN archived, docs/issues/<filename>.md
+[Analysis]    Root cause: <one-liner>
+[RED]         Test written, failure reason: <error message>
+[GREEN]       Fix complete, tests passing
+[Retro]       Category: <category> | Prevention: <action summary> | Similar: <N found>
+[Done]        Issue #NNN archived, docs/issues/<filename>.md
 ```
 
 If same test fails 3 times during fix, trigger **Three-Strike Protocol** (same as `/tdd:loop`).
@@ -144,4 +190,6 @@ If same test fails 3 times during fix, trigger **Three-Strike Protocol** (same a
 - Cannot write implementation code without seeing RED test failure
 - Must run full regression after fix, not just single test
 - UI/end-to-end flow bugs must run E2E, not just unit tests
-- High/Critical severity bugs: prevention measures should be recorded in project docs
+- **Retrospective is mandatory for ALL bugs, not just High/Critical**
+- **At least one prevention action must be executed immediately, not deferred**
+- **Must search for similar patterns in codebase — do not assume the bug is isolated**

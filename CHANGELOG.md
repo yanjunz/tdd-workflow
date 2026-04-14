@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] — 2026-04-14 (unreleased)
+
+### Changed
+
+- **`/tdd:bug` 新增 Step 8 Retrospective（mandatory）** — 每个 bug 修复后强制反思：
+  - 分类根因（5 种：设计缺陷 / 测试遗漏 / 代码模式 / 知识盲区 / 流程缺失）
+  - 写具体防护措施（带 checkbox 的 action item）
+  - 立即执行至少一项（不允许"以后再做"）
+  - 搜索代码库中的同类问题，发现就一起修
+- Bug 输出新增 `[Retro]` 状态行
+- Guardrails 强化：回顾对所有 bug 强制，不限 High/Critical
+
 ## [1.1.0] — 2026-04-14 (unreleased)
 
 ### Added
