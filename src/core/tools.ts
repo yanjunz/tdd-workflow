@@ -10,6 +10,10 @@ export interface AITool {
   skillsDir: string;
   /** Where to install slash commands (relative to project root) */
   commandsDir: string;
+  /** Where to install hook scripts (relative to project root), if supported */
+  hooksDir?: string;
+  /** Path to settings file for hook registration (relative to project root) */
+  settingsFile?: string;
 }
 
 export const SUPPORTED_TOOLS: AITool[] = [
@@ -19,6 +23,8 @@ export const SUPPORTED_TOOLS: AITool[] = [
     markerDir: '.claude',
     skillsDir: '.claude/skills/tdd-workflow',
     commandsDir: '.claude/commands/tdd',
+    hooksDir: '.claude/hooks/tdd',
+    settingsFile: '.claude/settings.json',
   },
   {
     id: 'cursor',

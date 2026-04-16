@@ -79,6 +79,9 @@ export async function runInit(options: InitOptions): Promise<void> {
     if (r.filesWritten.length > 0) {
       console.log(chalk.green(`    ✓ ${r.filesWritten.length} files written`));
     }
+    if (r.hooksInstalled) {
+      console.log(chalk.green(`    ✓ hooks installed + settings.json updated`));
+    }
     if (r.skipped.length > 0) {
       console.log(
         chalk.yellow(`    ⚠ ${r.skipped.length} files skipped (use --force to overwrite)`),
