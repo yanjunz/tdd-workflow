@@ -7,7 +7,7 @@ tags: [tdd, workflow, loop, multi-agent]
 
 Auto TDD cycle until `tasks.md` Phase 2 is all `[x]`.
 
-**Architecture**: Multi-Agent — you are the **Reviewer/Coordinator**. You spawn **Coder sub-agents** to write code, then evaluate their output independently.
+**Architecture**: You are the **Reviewer/Coordinator**. If the Agent tool is available (Claude Code), spawn **Coder sub-agents** to write code and review their output independently. If the Agent tool is not available (Cursor, CodeBuddy, Cline, etc.), write code yourself then **switch to Reviewer role** and self-review against the checklist before proceeding.
 
 **Steps**
 
@@ -35,14 +35,14 @@ Auto TDD cycle until `tasks.md` Phase 2 is all `[x]`.
 
    ---
 
-   **RED phase — Coder Agent writes test:**
+   **RED phase — Write failing test:**
 
    Set harness phase:
    ```bash
    SPEC=$(cat tdd-specs/.current); sed -i'' 's/phase=.*/phase=red/' "tdd-specs/$SPEC/.harness"
    ```
 
-   Use the **Agent tool** to spawn a Coder sub-agent with this prompt:
+   **If Agent tool is available** — spawn a Coder sub-agent:
    ```
    You are a TDD Coder. Your ONLY job is to write a failing test.
 
@@ -62,9 +62,11 @@ Auto TDD cycle until `tasks.md` Phase 2 is all `[x]`.
    Report back: (1) test file path, (2) test name, (3) exact failure message.
    ```
 
-   **Reviewer (you) evaluates the Coder's test:**
+   **If Agent tool is NOT available** — write the test yourself, following the same rules above (one test, behavior-focused, must fail).
 
-   Read the test file and check against the review checklist (see `templates/review-checklist.md`):
+   **Reviewer step (mandatory in both modes):**
+
+   Read the test file and check against `templates/review-checklist.md`:
    1. Does it cover the scenario described in the task?
    2. Does it test behavior (input → expected output), not implementation details?
    3. Are boundary/error cases included if the task mentions them?
@@ -72,19 +74,25 @@ Auto TDD cycle until `tasks.md` Phase 2 is all `[x]`.
    5. Did the test actually FAIL for the right reason ("feature not implemented", not syntax error)?
    6. Was only ONE test file created (no src/ files modified)?
 
-   - **If test quality is insufficient**: provide specific feedback to the Coder (via `SendMessage` to the agent, or spawn a new agent with the feedback). Example: "Test only covers happy path, but task description mentions error handling. Add a test case for empty input."
-   - **If test passes review**: mark task `[~]`, proceed to GREEN
+   Output your review findings:
+   ```
+   [Review:RED] ✓ covers task scenario | ✓ behavior test | ✓ fails correctly | Issues: <none or list>
+   ```
+
+   - **If issues found (Agent mode)**: provide specific feedback and spawn Coder again
+   - **If issues found (self mode)**: fix the issues yourself, then re-review
+   - **If review passes**: mark task `[~]`, proceed to GREEN
 
    ---
 
-   **GREEN phase — Coder Agent writes implementation:**
+   **GREEN phase — Write implementation:**
 
    Set harness phase:
    ```bash
    SPEC=$(cat tdd-specs/.current); sed -i'' 's/phase=.*/phase=green/' "tdd-specs/$SPEC/.harness"
    ```
 
-   Use the **Agent tool** to spawn a Coder sub-agent with this prompt:
+   **If Agent tool is available** — spawn a Coder sub-agent:
    ```
    You are a TDD Coder. Your ONLY job is to make the failing test pass.
 
@@ -102,7 +110,9 @@ Auto TDD cycle until `tasks.md` Phase 2 is all `[x]`.
    Report back: (1) files created/modified, (2) full test suite result, (3) any regressions.
    ```
 
-   **Reviewer (you) evaluates the Coder's implementation:**
+   **If Agent tool is NOT available** — write the implementation yourself, following the same rules above (minimum code, no test modifications, run full suite).
+
+   **Reviewer step (mandatory in both modes):**
 
    Read the implementation code and check:
    1. Is this the minimum code needed to pass? Any premature abstraction or over-engineering?
@@ -110,7 +120,13 @@ Auto TDD cycle until `tasks.md` Phase 2 is all `[x]`.
    3. Did the **full test suite** pass, including all pre-existing tests (no regressions)?
    4. Does the code follow the project's existing conventions?
 
-   - **If issues found**: provide specific feedback and spawn Coder again. Example: "Implementation adds a caching layer that the test doesn't require. Remove it — only satisfy the test."
+   Output your review findings:
+   ```
+   [Review:GREEN] ✓ minimum code | ✓ no test mods | ✓ full suite passes | Issues: <none or list>
+   ```
+
+   - **If issues found (Agent mode)**: provide specific feedback and spawn Coder again
+   - **If issues found (self mode)**: fix the issues yourself, then re-review
    - **If all tests pass + review passes**: mark task `[x]`, reset strikes, proceed to REFACTOR
 
    ---
@@ -122,7 +138,7 @@ Auto TDD cycle until `tasks.md` Phase 2 is all `[x]`.
    SPEC=$(cat tdd-specs/.current); sed -i'' 's/phase=.*/phase=refactor/' "tdd-specs/$SPEC/.harness"
    ```
 
-   As the Reviewer/Coordinator, decide if refactoring is needed:
+   Decide if refactoring is needed:
    - Eliminate duplication between new code and existing code
    - Improve naming for clarity
    - Extract shared logic if pattern repeated 3+ times
@@ -160,7 +176,8 @@ Auto TDD cycle until `tasks.md` Phase 2 is all `[x]`.
 
 **Guardrails**
 - Step 2 task completeness scan runs at every loop start, cannot skip
-- **Coder and Reviewer are separate**: always use Agent tool for coding, never write code directly as the main agent during RED/GREEN
-- After each RED, Reviewer must verify test fails for the right reason before continuing
-- After each GREEN, Reviewer must run full suite to confirm no regressions
-- If Coder's output fails review twice in a row, escalate to user before third attempt
+- **When Agent tool is available**: always use it for coding in RED/GREEN, never write code directly as the main agent
+- **When Agent tool is NOT available**: write code yourself, but Reviewer step is still mandatory — you must output `[Review:RED]` and `[Review:GREEN]` lines with checklist results
+- After each RED, verify test fails for the right reason before continuing
+- After each GREEN, run full suite to confirm no regressions
+- If Coder's output (or your own code in self mode) fails review twice in a row, escalate to user before third attempt

@@ -65,7 +65,7 @@ grep -rn "<keyword>" src/ 2>/dev/null || grep -rn "<keyword>" . --include="*.ts"
 
 After finding root cause, update Issue document's "Root Cause Analysis" section.
 
-### 5. Write Reproduction Test (RED) — via Coder Agent
+### 5. Write Reproduction Test (RED)
 
 Set harness to RED phase:
 ```bash
@@ -75,7 +75,7 @@ if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/.harness" ]; then
 fi
 ```
 
-Use the **Agent tool** to spawn a Coder sub-agent:
+**If Agent tool is available** — spawn a Coder sub-agent:
 ```
 You are a TDD Coder. Write a test that reproduces this bug.
 
@@ -96,12 +96,17 @@ Rules:
 After writing, run the test and report: file path, test name, failure message.
 ```
 
-**Reviewer (you) evaluates**: Does the test actually reproduce the reported bug? Is the failure message related to the symptoms from Step 1?
+**If Agent tool is NOT available** — write the reproduction test yourself, following the same rules.
 
-- If test doesn't reproduce the bug: provide feedback to Coder with more specific reproduction steps
+**Reviewer step (mandatory):** Does the test actually reproduce the reported bug? Is the failure message related to the symptoms from Step 1?
+```
+[Review:RED] ✓ reproduces bug | ✓ correct test layer | Issues: <none or list>
+```
+
+- If test doesn't reproduce the bug: fix (or re-prompt Coder) with more specific reproduction steps
 - If test passes review: proceed to GREEN
 
-### 6. Fix Code (GREEN) — via Coder Agent
+### 6. Fix Code (GREEN)
 
 Set harness to GREEN phase:
 ```bash
@@ -111,7 +116,7 @@ if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/.harness" ]; then
 fi
 ```
 
-Use the **Agent tool** to spawn a Coder sub-agent:
+**If Agent tool is available** — spawn a Coder sub-agent:
 ```
 You are a TDD Coder. Fix the bug to make the reproduction test pass.
 
@@ -128,7 +133,12 @@ After fixing, run the FULL test suite (not just the new test).
 Report: files modified, full suite result, any regressions.
 ```
 
-**Reviewer (you) evaluates**: Is the fix minimal and targeted at the root cause? Did full regression pass?
+**If Agent tool is NOT available** — write the fix yourself, following the same rules.
+
+**Reviewer step (mandatory):** Is the fix minimal and targeted at the root cause? Did full regression pass?
+```
+[Review:GREEN] ✓ minimal fix | ✓ targets root cause | ✓ full suite passes | Issues: <none or list>
+```
 
 ### 7. Complete Issue Documentation
 
