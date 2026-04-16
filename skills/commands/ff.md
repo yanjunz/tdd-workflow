@@ -53,7 +53,21 @@ Fast-forward: generate requirements -> design -> tasks in one shot.
    | Integration tests | tasks.md has integration test tasks covering key HTTP endpoint chains + DB write verification | Add: full chain (request -> response -> DB state); concurrency safety; permission boundaries |
    | E2E | Phase 3 has E2E tasks | Add key user flow end-to-end verification |
 
-8. **Show summary, wait for confirmation**
+8. **Specification Review (Reviewer self-check before presenting to user)**
+
+   Before showing summary, validate the generated specs as Reviewer:
+
+   | Document | Check | Fix if failing |
+   |----------|-------|----------------|
+   | requirements.md | Every AC is testable and specific (not vague like "should work well") | Rewrite vague ACs with concrete input → output |
+   | requirements.md | Every REQ maps to at least one Phase 2 task | Add missing test tasks |
+   | design.md | References actual project files/modules (not generic placeholders) | Replace placeholders with real paths |
+   | tasks.md | Each task has single-responsibility scope (one test per task) | Split compound tasks |
+   | tasks.md | All 3 test layers covered (unit, integration, E2E) | Add missing layer tasks |
+
+   Fix any gaps found before proceeding.
+
+9. **Show summary, wait for confirmation**
 
 **Output format**
 

@@ -65,7 +65,7 @@ grep -rn "<keyword>" src/ 2>/dev/null || grep -rn "<keyword>" . --include="*.ts"
 
 After finding root cause, update Issue document's "Root Cause Analysis" section.
 
-### 5. Write Reproduction Test (RED)
+### 5. Write Reproduction Test (RED) — via Coder Agent
 
 Set harness to RED phase:
 ```bash
@@ -75,18 +75,33 @@ if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/.harness" ]; then
 fi
 ```
 
-Choose test layer based on bug type:
+Use the **Agent tool** to spawn a Coder sub-agent:
+```
+You are a TDD Coder. Write a test that reproduces this bug.
 
-| Bug Type | Preferred Test Layer |
-|----------|---------------------|
-| Business logic error | Unit test (pure function/service layer) |
-| API error | Integration test (HTTP chain) |
-| UI/interaction issue | E2E (end-to-end flow) |
+Bug symptoms: <from Step 1>
+Root cause: <from Step 4>
+Module: <affected module path>
+Test framework: <detected from project>
 
-Run using project's actual test command to verify test fails (RED).
-Confirm failure is because "bug exists" not "test is wrong".
+Rules:
+- The test must FAIL with the current code (proving the bug exists)
+- Do NOT fix the bug — only write the reproduction test
+- Do NOT modify any src/ files
+- Choose test layer based on bug type:
+  - Business logic error -> Unit test
+  - API error -> Integration test
+  - UI/interaction issue -> E2E
 
-### 6. Fix Code (GREEN)
+After writing, run the test and report: file path, test name, failure message.
+```
+
+**Reviewer (you) evaluates**: Does the test actually reproduce the reported bug? Is the failure message related to the symptoms from Step 1?
+
+- If test doesn't reproduce the bug: provide feedback to Coder with more specific reproduction steps
+- If test passes review: proceed to GREEN
+
+### 6. Fix Code (GREEN) — via Coder Agent
 
 Set harness to GREEN phase:
 ```bash
@@ -96,15 +111,24 @@ if [ -n "$SPEC" ] && [ -f "tdd-specs/$SPEC/.harness" ]; then
 fi
 ```
 
-Write minimum code to pass, following project's existing conventions:
-
-```bash
-# Verify fix passes (using project's actual test command)
-<TEST_COMMAND> --testPathPattern="<file>"
-
-# Full regression, confirm no side effects
-<TEST_COMMAND>
+Use the **Agent tool** to spawn a Coder sub-agent:
 ```
+You are a TDD Coder. Fix the bug to make the reproduction test pass.
+
+Failing test: <file path from Step 5>
+Failure message: <exact error>
+Root cause: <from Step 4>
+
+Rules:
+- Write the MINIMUM fix — do NOT refactor unrelated code
+- Do NOT modify any test files
+- Follow the project's existing code conventions
+
+After fixing, run the FULL test suite (not just the new test).
+Report: files modified, full suite result, any regressions.
+```
+
+**Reviewer (you) evaluates**: Is the fix minimal and targeted at the root cause? Did full regression pass?
 
 ### 7. Complete Issue Documentation
 

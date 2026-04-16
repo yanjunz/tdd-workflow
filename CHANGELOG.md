@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] — 2026-04-16 (unreleased)
+
+### Added
+
+- **Multi-Agent Architecture (Phase 1)** — Coder/Reviewer 分离
+  - `/tdd:loop`: RED 和 GREEN 阶段通过 Agent 工具 spawn Coder 子 agent 写代码，主 agent 作为 Reviewer 独立评审
+  - `/tdd:bug`: Step 5 (RED) 和 Step 6 (GREEN) 同样使用 Coder sub-agent
+  - `/tdd:ff`: 新增 Step 8 Specification Review，生成规范后 Reviewer 自检质量
+  - `templates/review-checklist.md`: Reviewer 评审标准文档（测试评审、实现评审、规范评审、bug 修复评审）
+- Coder Agent 的上下文不包含评审标准，只知道任务描述，无法自我放水
+- Coder 产出如果两次评审不通过，升级给用户决策
+
 ## [1.1.1] — 2026-04-14 (unreleased)
 
 ### Changed
