@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.2.0] — 2026-04-16 (unreleased)
+## [1.2.0] — 2026-04-16
 
 ### Added
 
@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
   - `templates/review-checklist.md`: Reviewer 评审标准文档（测试评审、实现评审、规范评审、bug 修复评审）
 - Coder Agent 的上下文不包含评审标准，只知道任务描述，无法自我放水
 - Coder 产出如果两次评审不通过，升级给用户决策
+- **跨工具兼容降级** — 非 Claude Code 工具（Cursor、CodeBuddy、Cline 等）自动降级为单 Agent + 强制 self-review，输出 `[Review:RED]` `[Review:GREEN]` checklist 结果
+- **Hooks 迁移至 settings.json** — SKILL.md frontmatter hooks 不被 Claude Code 执行，改为独立 shell 脚本 + `.claude/settings.json` 注册
+  - 5 个 hook 脚本安装到 `.claude/hooks/tdd/`
+  - `init` 时自动 merge hooks 配置到 settings.json，不覆盖用户已有设置
+  - `sed -i''` 兼容 macOS 和 Linux
 
 ## [1.1.1] — 2026-04-14 (unreleased)
 
