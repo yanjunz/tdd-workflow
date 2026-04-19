@@ -76,7 +76,7 @@ Phase 4: Delivery verification. Every check must pass before continuing.
    - Issues: <IDs or "none this time">
    ```
 
-7. **Prompt to run `/tdd:archive` to archive specs**
+7. **Prompt to run `/tdd:notes` to generate practice notes, then `/tdd:archive` to archive specs**
 
 **Guardrails**
 - Compilation verification cannot be skipped for compiled languages with build artifacts

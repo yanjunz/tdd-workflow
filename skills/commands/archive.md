@@ -16,6 +16,17 @@ Archive completed specs.
    ```
    If incomplete tasks exist, stop and prompt to complete `/tdd:done` first.
 
+2. **Check for practice notes**
+   ```bash
+   SPEC=$(cat tdd-specs/.current)
+   if [ ! -f "tdd-specs/$SPEC/tdd-practice-notes.md" ]; then
+     echo "WARNING: No practice notes found. Run /tdd:notes first to capture lessons learned."
+   else
+     echo "OK Practice notes exist"
+   fi
+   ```
+   If no notes, prompt to run `/tdd:notes` first. Do not block archival, but strongly recommend.
+
 2. **Archive**
    ```bash
    SPEC=$(cat tdd-specs/.current)
