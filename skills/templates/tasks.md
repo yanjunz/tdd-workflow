@@ -3,23 +3,38 @@
 > Created: {{DATE}}
 > Status: in-progress
 
-## Phase 2: Unit Tests + Implementation (TDD Main Loop)
+## 任务拆分原则
 
-- [ ] 2.1 {{module}}: Write failing test (RED)
-  - Test file: `{{test dir}}/{{module}}/{{file}}.test.{{ext}}`
-  - Covers: REQ-01 happy path
-  - Command: `{{TEST_COMMAND}} {{file}}`
-- [ ] 2.2 {{module}}: Write minimum implementation (GREEN)
-  - Implementation file: `{{source dir}}/{{module}}/{{file}}.{{ext}}`
-- [ ] 2.3 {{module}}: Refactor
-- [ ] 2.4 {{module}}: Error scenario tests + implementation
-- [ ] 2.5 Integration test: Write failing test
+> **按用户行为链路拆，不按测试层拆。**
+> 每个任务 = 一个用户可感知的行为变化，GREEN 必须包含接入真实调用方。
+> 如果接入代码无法单测，标注为独立的"接入"任务，不可省略。
+
+## Phase 2: TDD Main Loop (按行为链路)
+
+<!-- 模板示例：每个行为链路包含 RED + GREEN + 接入 -->
+
+- [ ] 2.1 行为: {{用户做了什么 → 系统应该怎样响应}}
+  - [ ] 2.1.1 RED: 测试 {{纯逻辑函数}}
+    - Test file: `{{test dir}}/{{file}}.{{ext}}`
+    - Covers: REQ-XX
+  - [ ] 2.1.2 GREEN: 实现纯函数 + **接入 {{调用方文件}}**
+    - Impl: `{{source dir}}/{{file}}.{{ext}}`
+    - 接入: `{{framework file}}` 中调用上述函数
+  - [ ] 2.1.3 REFACTOR (if needed)
+
+- [ ] 2.2 行为: {{下一个用户行为}}
+  - [ ] 2.2.1 RED
+  - [ ] 2.2.2 GREEN + 接入
+  - [ ] 2.2.3 REFACTOR
+
+- [ ] 2.N Integration test: 验证真实 API 链路
   - Test file: `{{test dir}}/integration/{{feature}}.test.{{ext}}`
-- [ ] 2.6 Integration test: Implement and pass
+  - Command: `{{TEST_COMMAND}}`
 
 ## Phase 3: E2E Acceptance
 
-- [ ] 3.1 E2E (if applicable)
+- [ ] 3.1 E2E (前端 UI 实现后才写，不提前占位)
+  - 前置条件: {{哪些前端页面/组件必须存在}}
   - Test file: `{{E2E test dir}}/{{feature}}.spec.{{ext}}`
   - Command: `{{E2E_COMMAND}}`
 
