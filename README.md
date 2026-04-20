@@ -14,6 +14,7 @@
 - [安装方式](#安装方式)
 - [CLI 命令参考](#cli-命令参考)
 - [Multi-Agent 架构](#multi-agent-架构)
+- [Verification System](#verification-system)
 - [完整工作流示例](#完整工作流示例)
 - [斜杠命令详解](#斜杠命令详解)
 - [Harness Hooks](#harness-hooks)
@@ -121,8 +122,9 @@ tdd-workflow init --force
 | 类型 | 文件 | 安装位置 |
 |------|------|----------|
 | 技能文档 | `SKILL.md` | `.{tool}/skills/tdd-workflow/SKILL.md` |
-| 规范模板 | `requirements.md`、`design.md`、`tasks.md`、`review-checklist.md` | `.{tool}/skills/tdd-workflow/templates/` |
-| 斜杠命令 | 9 个命令（见下方详解） | `.{tool}/commands/tdd/` |
+| 规范模板 | `requirements.md`、`design.md`、`tasks.md`、`review-checklist.md`、`verify-project.md`、`verify-feature.md` | `.{tool}/skills/tdd-workflow/templates/` |
+| Cleanup 预设库 | `cleanup.md` | `.{tool}/skills/tdd-workflow/verify-presets/` |
+| 斜杠命令 | 13 个命令（见下方详解） | `.{tool}/commands/tdd/` |
 | Hooks 脚本 | 5 个 shell 脚本（仅 Claude Code） | `.claude/hooks/tdd/` |
 | Hooks 配置 | 自动合并到 settings.json（仅 Claude Code） | `.claude/settings.json` |
 
@@ -193,6 +195,116 @@ Reviewer 按 `templates/review-checklist.md` 评审，主要检查项：
 - 最小代码——无提前抽象或过度设计
 - 未修改测试文件
 - 全量测试通过（无回归）
+
+---
+
+## Verification System
+
+TDD Workflow 2.3.0 引入 **分层验证系统**，解决「AI 自己跑测试、自己判断通过」的质量黑洞。
+
+### 核心问题
+
+之前 `/tdd:done` 的交付检查是通用、静态的——AI 说"测试通过了、覆盖率达标"，但：
+- 这个**具体项目**怎么跑测试？（`npm test` 还是 `pytest`？）
+- 这个**具体 feature** 要怎么验证？（登录能成功？JWT claims 对不对？）
+- **业务侧验收**靠什么？（手动点？脚本？人工确认？）
+
+### 解决方案：两层配置 + 四阶段执行
+
+```
+┌─ 项目级 (tdd-specs/.verify/project.md) ──────────────────────┐
+│  团队共享配置：commands / environments / common_flows          │
+│  - 怎么跑单测/集成/E2E？覆盖率目标？                             │
+│  - dev 环境怎么启动？健康检查怎么做？                            │
+│  - staging 怎么部署？部署后怎么冒烟？                            │
+│  - pre/post cleanup 清什么？（端口、容器、数据库）              │
+└──────────────────────────────────────────────────────────────┘
+┌─ 个人参数 (tdd-specs/.verify/project.local.md, gitignored) ─┐
+│  每人不同的参数：MY_USER / DEV_PORT / 测试账号密码            │
+│  敏感参数建议从 shell env 或 1Password 读                     │
+└──────────────────────────────────────────────────────────────┘
+┌─ Feature 级 (tdd-specs/<name>/verify.md) ──────────────────┐
+│  只写项目级没覆盖的部分                                       │
+│  - feature 特有的流程                                        │
+│  - 依赖的项目级验证                                          │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 4 阶段执行（`/tdd:done`）
+
+```
+Stage 1: 本地代码验证（全自动）
+  typecheck → lint → build → unit → integration → coverage
+  全过才继续
+
+Stage 2: 本地 E2E 验证（人机交互）
+  pre_verify_cleanup
+    → 杀占用端口的进程
+    → 停 Docker Compose
+    → 重置数据库
+  启动 dev server + 等待 readiness
+  跑 common_flows（登录、创建资源...）
+    → 每个 flow 展示给用户，等待"通过"或问题描述
+  跑 feature_specific_flows
+  post_verify_cleanup
+
+Stage 3: 测试环境验证（可选）
+  执行 deploy 脚本
+  等待 staging readiness
+  跑 post_deploy_smoke
+
+Stage 4: 交付确认
+  生成 verification-report.md
+  输出监控链接
+  提示 /tdd:notes 和 /tdd:archive
+```
+
+### 工作流
+
+```bash
+# 首次使用（项目生命周期一次）
+/tdd:verify-setup     # 交互式配置项目级验证，帮你生成 deploy 脚本骨架
+/tdd:verify-local     # 填你的个人参数
+
+# 每个 feature
+/tdd:new xxx          # 需求收集最后一步询问 feature 特有的验证需求
+/tdd:ff               # 生成规范
+/tdd:loop             # TDD 循环
+/tdd:done             # 4 阶段验证
+/tdd:archive          # 归档（verification-report.md 随之归档）
+
+# 手动
+/tdd:cleanup dev      # 验证跑崩后手动清理
+```
+
+### Cleanup 预设库
+
+内置 8 个 cleanup 预设，`/tdd:verify-setup` 根据项目技术栈自动推荐：
+
+| 预设 | 用途 |
+|------|------|
+| `kill_port` | 杀占用端口的进程 |
+| `kill_node_process` | 按模式杀进程 |
+| `docker_compose_down` | 停 Docker Compose（可选清 volumes） |
+| `docker_container_rm` | 删匹配名的容器 |
+| `reset_db` | 重置数据库 |
+| `clean_tmp_files` | 清临时文件 |
+| `clear_redis` | 清 Redis |
+| `git_clean` | 清 git 未跟踪文件 |
+
+每个步骤支持 `on_fail`（continue/abort/ask）、`timeout`、`condition`、`parallel` 字段。
+
+### 参数化
+
+配置文件用 `${VAR}` 和 `${VAR:-default}` 语法。解析优先级：
+
+1. 命令行 `--var VAR=xxx`
+2. Shell 环境变量（推荐用于敏感参数）
+3. `project.local.md`（个人参数）
+4. `project.md` 的默认值
+5. 必填但未提供 → 报错
+
+敏感参数（`*_TOKEN` / `*_PASSWORD` / `*_SECRET` 等）建议从 shell env 或 1Password CLI 读，不写入任何文件。
 
 ---
 
@@ -594,11 +706,15 @@ your-project/
 │   │   └── user-prompt-submit.sh
 │   ├── skills/tdd-workflow/
 │   │   ├── SKILL.md                  # 完整技能定义
-│   │   └── templates/                # 规范文档模板
-│   │       ├── requirements.md
-│   │       ├── design.md
-│   │       ├── tasks.md
-│   │       └── review-checklist.md   # Reviewer 评审标准
+│   │   ├── templates/                # 规范文档模板
+│   │   │   ├── requirements.md
+│   │   │   ├── design.md
+│   │   │   ├── tasks.md
+│   │   │   ├── review-checklist.md   # Reviewer 评审标准
+│   │   │   ├── verify-project.md     # 项目级验证模板
+│   │   │   └── verify-feature.md     # Feature 级验证模板
+│   │   └── verify-presets/           # Cleanup 预设库
+│   │       └── cleanup.md
 │   └── commands/tdd/
 │       ├── new.md                    # /tdd:new
 │       ├── ff.md                     # /tdd:ff
@@ -607,15 +723,24 @@ your-project/
 │       ├── change.md                 # /tdd:change
 │       ├── continue.md              # /tdd:continue
 │       ├── e2e.md                    # /tdd:e2e
-│       ├── done.md                   # /tdd:done
+│       ├── verify-setup.md          # /tdd:verify-setup
+│       ├── verify-local.md          # /tdd:verify-local
+│       ├── cleanup.md               # /tdd:cleanup
+│       ├── done.md                   # /tdd:done (4 阶段验证)
+│       ├── notes.md                  # /tdd:notes
 │       └── archive.md               # /tdd:archive
 └── tdd-specs/                        # 规范文件存放目录
     ├── .current                      # 当前活跃的功能名
+    ├── .verify/                      # 项目级验证配置
+    │   ├── project.md                # 团队共享（提交 git）
+    │   └── project.local.md          # 个人参数（gitignored）
     ├── blog-comments/                # 进行中的功能
-    │   ├── .harness                  # harness 状态（phase/strikes/时间戳）
+    │   ├── .harness                  # harness 状态
     │   ├── requirements.md
     │   ├── design.md
-    │   └── tasks.md
+    │   ├── tasks.md
+    │   ├── verify.md                 # feature 级验证（独有部分）
+    │   └── verification-report.md   # /tdd:done 生成的验证报告
     └── archive/                      # 已完成的功能
         └── 2026-04/
             └── user-auth/

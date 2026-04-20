@@ -57,6 +57,19 @@ export function installForTool(
         );
       }
     }
+
+    // Copy verify-presets/
+    const presetsDir = join(skillsRoot, 'verify-presets');
+    if (existsSync(presetsDir)) {
+      for (const file of readdirSync(presetsDir)) {
+        copyFile(
+          join(presetsDir, file),
+          join(projectDir, tool.skillsDir, 'verify-presets', file),
+          force,
+          result,
+        );
+      }
+    }
   }
 
   if (delivery === 'commands' || delivery === 'both') {
@@ -159,7 +172,8 @@ function mergeHooksIntoSettings(settingsPath: string, hooksDir: string): void {
 }
 
 /**
- * Ensure the tdd-specs/ directory exists with a .gitkeep.
+ * Ensure the tdd-specs/ directory exists with a .gitkeep, and create .verify/ subdir.
+ * Also adds tdd-specs/.verify/project.local.md to .gitignore if a .gitignore exists.
  */
 export function ensureSpecsDir(projectDir: string): void {
   const specsDir = join(projectDir, 'tdd-specs');
@@ -167,6 +181,28 @@ export function ensureSpecsDir(projectDir: string): void {
   const gitkeep = join(specsDir, '.gitkeep');
   if (!existsSync(gitkeep)) {
     writeFileSync(gitkeep, '');
+  }
+
+  // Create .verify/ subdir (for future /tdd:verify-setup output)
+  const verifyDir = join(specsDir, '.verify');
+  mkdirSync(verifyDir, { recursive: true });
+  const verifyGitkeep = join(verifyDir, '.gitkeep');
+  if (!existsSync(verifyGitkeep)) {
+    writeFileSync(verifyGitkeep, '');
+  }
+
+  // Add project.local.md to .gitignore if .gitignore exists
+  const gitignorePath = join(projectDir, '.gitignore');
+  const ignoreLine = 'tdd-specs/.verify/project.local.md';
+  if (existsSync(gitignorePath)) {
+    const content = readFileSync(gitignorePath, 'utf-8');
+    if (!content.split('\n').some((line) => line.trim() === ignoreLine)) {
+      const newline = content.length > 0 && !content.endsWith('\n') ? '\n' : '';
+      writeFileSync(
+        gitignorePath,
+        content + newline + '# tdd-workflow: personal verify params\n' + ignoreLine + '\n',
+      );
+    }
   }
 }
 

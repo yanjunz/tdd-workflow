@@ -38,10 +38,40 @@ Start new feature TDD workflow.
    ```bash
    mkdir -p tdd-specs/<name>
    echo "<name>" > tdd-specs/.current
-   printf 'phase=requirements\ntask=\nstrikes=0\nlast_test_time=0\nlast_edit_time=0\n' > tdd-specs/<name>/.harness
+   printf 'phase=requirements\ntask=\nstrikes=0\nlast_test_time=0\nlast_edit_time=0\nverify_stage=0\nverify_local_ok=false\nverify_staging_ok=false\n' > tdd-specs/<name>/.harness
    ```
 
-4. **Stop, wait for user direction**
+4. **Feature-level verification (optional but recommended)**
+
+   Check if project has verification config:
+
+   ```bash
+   if [ -f tdd-specs/.verify/project.md ]; then
+     # Read common_flows names from project.md
+     grep -E '^\s+\w+:' tdd-specs/.verify/project.md | head -10
+     echo "Project has verification config. Asking about feature-specific verify..."
+   else
+     echo "Project has no verification config yet."
+     echo "→ Consider running /tdd:verify-setup first for structured verification."
+     echo "→ You can skip this for now; /tdd:done will fall back to generic checks."
+   fi
+   ```
+
+   Use **AskUserQuestion**:
+   > "项目级验证覆盖了这些流程（列出 common_flows）。这个 feature 有什么项目级**没覆盖**的独有验证需求？"
+   > - [A] 有特殊验证需求（描述）
+   > - [B] 没有，完全用项目级
+   > - [C] 项目还没配置，跳过
+
+   If user chose [A]:
+   - 收集用户描述的验证需求
+   - 生成 `tdd-specs/<name>/verify.md` 草稿（参考 `templates/verify-feature.md`）
+   - 用户确认后保存
+
+   If [B]: 创建空的 verify.md（只包含 `depends_on_project_verify: []`）
+   If [C]: 不创建 verify.md，留给后续
+
+5. **Stop, wait for user direction**
 
 **Output**
 

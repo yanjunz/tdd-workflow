@@ -27,7 +27,10 @@ metadata:
 | `/tdd:refactor` | Refactor, keep all green |
 | `/tdd:loop` | Auto-cycle red -> green -> refactor until Phase 2 complete |
 | `/tdd:e2e` | Write and run E2E acceptance tests |
-| `/tdd:done` | Full regression + Issue tracking + delivery checklist |
+| `/tdd:verify-setup` | Interactive project-level verify config (tdd-specs/.verify/project.md) |
+| `/tdd:verify-local` | Interactive personal verify params (tdd-specs/.verify/project.local.md, gitignored) |
+| `/tdd:cleanup [env]` | Manual cleanup — run pre_verify_cleanup without running verification itself |
+| `/tdd:done` | **4-stage verification**: code checks → local E2E → staging → delivery report |
 | `/tdd:notes` | Generate TDD practice notes — record decisions, pitfalls, lessons learned |
 | `/tdd:bug` | Bug fix workflow: report -> analyze -> test -> fix -> verify |
 | `/tdd:continue <name>` | Resume in-progress feature |

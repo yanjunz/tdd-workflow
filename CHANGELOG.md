@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0] — 2026-04-21
+
+### Added
+
+- **Verification System** — 项目级 + Feature 级分层验证，解决「AI 自述验证」问题
+  - `/tdd:verify-setup` — 交互式生成 `tdd-specs/.verify/project.md`（团队共享配置）
+    - 检测项目技术栈自动推荐 commands、cleanup、environments
+    - **帮用户生成 staging 部署脚本骨架**（SSH/K8s/Vercel/Docker/CI 等方案）
+    - 识别 `${VAR}` 占位符，区分个人参数/敏感参数/团队共享
+  - `/tdd:verify-local` — 交互式填写 `tdd-specs/.verify/project.local.md`（gitignored）
+    - 敏感参数优先引导用 shell env / 1Password CLI，不写入文件
+    - 基础值验证（URL、端口、邮箱格式）
+  - `/tdd:cleanup [env]` — 手动触发环境清理，不跑验证本身
+    - 支持 dry-run 预览
+    - 按 on_fail 策略处理失败（continue/abort/ask）
+- **`/tdd:done` 重写为 4 阶段验证**
+  - Stage 1: 本地代码验证（typecheck/lint/build/unit/integration/coverage，全自动）
+  - Stage 2: 本地 E2E（pre-cleanup → 启动 dev server → 执行 common_flows + feature flows → 用户逐个确认 → post-cleanup）
+  - Stage 3: 测试环境（可选，deploy → readiness → smoke tests）
+  - Stage 4: 交付确认 + 生成 `verification-report.md`
+  - 混合交互：Stage 之间用 AskUserQuestion（Y/N/Skip），Stage 内用自由回复
+  - 支持 `--skip-stage 2,3` 和 `--dry-run`
+- **Cleanup 预设库** — `skills/verify-presets/cleanup.md`
+  - 8 个内置预设：kill_port、kill_node_process、docker_compose_down、docker_container_rm、reset_db、clean_tmp_files、clear_redis、git_clean
+  - 支持 on_fail、timeout、condition、parallel 字段
+  - 幂等性要求
+- **Feature 级 verify.md** — 每个 feature 可以定义独有的验证流程
+  - `/tdd:new` 需求收集最后一步询问 feature 特有的验证需求
+  - 只写项目级 `common_flows` 没覆盖的部分，避免重复
+  - 支持 `depends_on_project_verify` 和 `skip_project_checks`
+- **`.harness` 新增字段**
+  - `verify_stage` (0-5) — 当前验证阶段
+  - `verify_local_ok` / `verify_staging_ok` — 各阶段通过状态
+- **installer.ts** 自动复制 `skills/verify-presets/`，创建 `tdd-specs/.verify/`，自动把 `project.local.md` 加入 `.gitignore`
+
+### Changed
+
+- SKILL.md 命令表新增 `verify-setup`、`verify-local`、`cleanup`
+- `/tdd:new` 需求收集维度增加「feature 特有验证」
+
 ## [1.2.0] — 2026-04-16
 
 ### Added
