@@ -14,6 +14,7 @@
 - [安装方式](#安装方式)
 - [CLI 命令参考](#cli-命令参考)
 - [Multi-Agent 架构](#multi-agent-架构)
+- [UseCase-First 工作流](#usecase-first-工作流)
 - [Verification System](#verification-system)
 - [完整工作流示例](#完整工作流示例)
 - [斜杠命令详解](#斜杠命令详解)
@@ -122,7 +123,7 @@ tdd-workflow init --force
 | 类型 | 文件 | 安装位置 |
 |------|------|----------|
 | 技能文档 | `SKILL.md` | `.{tool}/skills/tdd-workflow/SKILL.md` |
-| 规范模板 | `requirements.md`、`design.md`、`tasks.md`、`review-checklist.md`、`verify-project.md`、`verify-feature.md` | `.{tool}/skills/tdd-workflow/templates/` |
+| 规范模板 | `usecases.md`、`requirements.md`、`design.md`、`tasks.md`、`review-checklist.md`、`verify-project.md`、`verify-feature.md` | `.{tool}/skills/tdd-workflow/templates/` |
 | Cleanup 预设库 | `cleanup.md` | `.{tool}/skills/tdd-workflow/verify-presets/` |
 | 斜杠命令 | 13 个命令（见下方详解） | `.{tool}/commands/tdd/` |
 | Hooks 脚本 | 5 个 shell 脚本（仅 Claude Code） | `.claude/hooks/tdd/` |
@@ -195,6 +196,137 @@ Reviewer 按 `templates/review-checklist.md` 评审，主要检查项：
 - 最小代码——无提前抽象或过度设计
 - 未修改测试文件
 - 全量测试通过（无回归）
+
+---
+
+## UseCase-First 工作流
+
+TDD Workflow 2.4.0 把 **UseCase** 提升为 `/tdd:ff` 的主产出。其他所有文档——requirements、design、tasks、E2E 测试——都从 UseCase 派生。
+
+### 为什么
+
+之前的问题：
+- **requirements.md** 只有声明性 AC（"系统应支持评论"），缺用户视角的完整交互故事
+- **`/tdd:e2e`** 让 AI 凭空发明 E2E 用例，容易漏关键路径
+- **`/tdd:change`** 影响分析跳过用户交互层，直接从 REQ 推 task
+- **PM/QA 看不懂** EARS 格式的 requirements，但能看懂 UseCase
+
+### 文档派生关系
+
+```
+usecases.md (主产出)
+    │
+    ├─→ requirements.md  (每个 REQ 标注 "来源 UC-01, UC-02")
+    ├─→ design.md        (每个接口标注 "支持 UC-01 step 2")
+    ├─→ tasks.md         (Phase 2 按 UC 分组，每个 task 标注 "Covers UC-N")
+    └─→ E2E tests        (每个 UC 路径一个 E2E，命名 "UC-N: <路径>")
+```
+
+### UseCase 结构
+
+```markdown
+## UC-01 用户发表评论
+
+**主角色** (Actor): 已登录用户
+**前置条件** (Precondition): 用户已登录且在文章详情页
+**触发事件** (Trigger): 用户点击"发表评论"按钮
+
+### 成功路径
+1. 用户输入评论内容
+2. 系统校验内容长度（≤500 字）
+3. 系统写入数据库
+4. 系统返回评论对象
+5. 前端追加到列表
+
+### 备选路径
+**3a.** 内容为空 → 系统提示"请输入内容"，停留输入框
+**3b.** 内容超长 → 系统提示"最多 500 字"，高亮超出
+**4a.** 写库失败 → 显示"提交失败，请重试"，保留输入
+
+### 后置条件
+新评论已写入数据库，前端列表已更新
+
+### 相关数据
+| 字段 | 类型 | 约束 |
+| content | string | 1-500 字 |
+```
+
+### 工作流
+
+```bash
+/tdd:new blog-comments
+  # 需求收集时，"核心场景"维度收集到步骤粒度
+  # 创建 usecases.draft.md 作为 /tdd:ff 的输入
+
+/tdd:ff
+  # Step 3: 生成 usecases.md（主产出，UC-01、UC-02...）
+  # Step 4: 生成 requirements.md（每个 REQ 标注 UC 来源）
+  # Step 5: 生成 design.md（每个接口标注支持的 UC）
+  # Step 6: 生成 tasks.md（Phase 2 按 UC 分组）
+  # Step 7: 覆盖检查（每个 UC 路径都有对应 task）
+
+/tdd:loop
+  # TDD 循环，每个 task 覆盖一个 UC 路径
+
+/tdd:e2e
+  # 从 usecases.md 派生 E2E，每个 UC 路径一个测试
+  # 测试命名：UC-01: 成功路径 / UC-01: 内容超长校验 (备选 3b)
+
+/tdd:done
+  # Stage 4.2: 交互式同步 UC 到项目全局 docs/usecases/
+  # 生成 usecases.synced.md 记录同步
+
+/tdd:archive
+  # 检查是否已同步 docs/，未同步则提示
+  # docs/usecases/ 保持不动，feature 目录整体归档
+```
+
+### UC 编号：Feature 内 vs 项目全局
+
+**Feature 内部**用局部编号 UC-01、UC-02：
+```
+tdd-specs/blog-comments/usecases.md
+  - UC-01 用户发表评论
+  - UC-02 作者删除评论
+```
+
+**同步到 `docs/usecases/`** 时自动映射为项目全局编号：
+```
+docs/usecases/comments.md
+  - UC-025 用户发表评论   (原 UC-01)
+  - UC-026 作者删除评论   (原 UC-02)
+```
+
+映射关系记录在 `tdd-specs/<feature>/usecases.synced.md`，便于追溯。
+
+### 同步时机
+
+- **默认**：`/tdd:done` Stage 4.2 交互式同步
+- **变更**：`/tdd:change` 检测到已同步 UC 变更时，询问同步策略（待同步/立即/仅 tdd-specs）
+- **归档前**：`/tdd:archive` 如发现未同步会警告
+
+### 变更影响分析
+
+`/tdd:change` 的影响分析把 **UseCase 维度放最前面**：
+
+```
+## Change Impact Assessment
+
+### Affected UseCases（主维度）
+| UseCase | Affected Step | Impact Type | Description |
+| UC-01 | step 2, step 6 | Modify | 评论输入改为 Markdown 编辑器 |
+| UC-01 | 新增 3c 备选 | Add | Markdown 语法错误提示 |
+
+### Affected Requirements (从 UC 推导)
+...
+
+### Affected Tasks
+...
+
+### UC 同步状态
+- usecases.synced.md 记录: 2026-04-20 → docs/usecases/comments.md
+- 推荐同步策略: 标记待同步，交付时再同步
+```
 
 ---
 

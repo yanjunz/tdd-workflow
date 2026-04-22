@@ -18,23 +18,23 @@ metadata:
 
 | Command | Purpose |
 |---------|---------|
-| `/tdd:new <name>` | Start new feature, interactive requirements gathering |
-| `/tdd:ff <name>` | Fast-forward: generate requirements -> design -> tasks in one shot |
-| `/tdd:change` | **Mid-course requirement change**: analyze impact, sync all 3 docs |
+| `/tdd:new <name>` | Start new feature, interactive requirements gathering (collects UC framework) |
+| `/tdd:ff <name>` | **UseCase-first**: generate usecases.md as primary output, then derive requirements → design → tasks from it |
+| `/tdd:change` | **Mid-course requirement change**: analyze impact (UseCase dimension first), sync all 4 docs |
 | `/tdd:spec` | Generate/update spec documents individually |
 | `/tdd:red` | Write a failing test (RED) |
 | `/tdd:green` | Write minimum code to pass (GREEN) |
 | `/tdd:refactor` | Refactor, keep all green |
 | `/tdd:loop` | Auto-cycle red -> green -> refactor until Phase 2 complete |
-| `/tdd:e2e` | Write and run E2E acceptance tests |
+| `/tdd:e2e` | **Derive E2E tests from usecases.md paths** (each UC path → one E2E) |
 | `/tdd:verify-setup` | Interactive project-level verify config (tdd-specs/.verify/project.md) |
 | `/tdd:verify-local` | Interactive personal verify params (tdd-specs/.verify/project.local.md, gitignored) |
 | `/tdd:cleanup [env]` | Manual cleanup — run pre_verify_cleanup without running verification itself |
-| `/tdd:done` | **4-stage verification**: code checks → local E2E → staging → delivery report |
+| `/tdd:done` | **4-stage verification**: code checks → local E2E → staging → delivery (includes UC sync to docs/usecases/) |
 | `/tdd:notes` | Generate TDD practice notes — record decisions, pitfalls, lessons learned |
 | `/tdd:bug` | Bug fix workflow: report -> analyze -> test -> fix -> verify |
 | `/tdd:continue <name>` | Resume in-progress feature |
-| `/tdd:archive` | Archive completed specs |
+| `/tdd:archive` | Archive completed specs (warns if usecases.md not synced to docs/) |
 
 ---
 

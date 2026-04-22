@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0] — 2026-04-22
+
+### Added
+
+- **UseCase-First 工作流** — 把 UseCase 提升为 `/tdd:ff` 的主产出，其他三份从 UC 派生
+  - `templates/usecases.md` — UseCase 文档模板（主角色/前置/触发/成功路径/备选路径/后置/相关数据 + UC→REQ/Tasks/E2E 映射表）
+  - `/tdd:new`：第 2 维度"核心场景"扩展为收集 UC 框架（角色/触发/关键步骤），创建 `usecases.draft.md` 作为 `/tdd:ff` 的输入
+  - `/tdd:ff` 重写为 UseCase-first：
+    - Step 3 生成 `usecases.md`（主产出），每个 UC 必须完整 6 字段
+    - Step 4-6 的 requirements.md / design.md / tasks.md 从 UC 派生，显式引用 UC 编号
+    - tasks.md 按 UC 分组，每个 task 标注 `Covers UC-N step M`
+    - Step 7 覆盖检查扩展：每个 UC 的每条路径（成功+备选）必须有 Phase 2/3 task
+- **`/tdd:e2e` 从 UseCase 派生 E2E**
+  - 不再让 AI 凭空发明 E2E 用例，直接从 `usecases.md` 的每条路径派生一个 E2E
+  - 测试命名强制格式：`UC-<N>: <路径描述>`，便于从测试结果反查 UC
+  - 新增 Rule 5：测试名必须引用 UC
+  - 完成后自动更新 usecases.md 的 "UC → E2E 映射" 表
+- **`/tdd:change` 影响分析加 UseCase 维度**
+  - 影响分析输出中 "Affected UseCases" 放最前面，然后 cascade 到 requirements / design / tasks
+  - Step 5 执行变更时先改 `usecases.md`，再 cascade 到其他文档
+  - 检测 `usecases.synced.md` 判断 UC 是否已同步到 `docs/usecases/`，给出同步策略选项（标记待同步/立即同步/只改 tdd-specs）
+- **`/tdd:done` Stage 4.2 交互式同步 UseCase 到 docs/usecases/**
+  - 新增 Stage 4.2：检查 `docs/usecases/` 现状，用 AskUserQuestion 询问同步方式（创建新文件/追加/拆分/跳过）
+  - 处理 UC 编号映射：Feature 内 UC-01 → 项目级 UC-025（根据 docs/ 现有最大编号自动递增）
+  - 生成 `tdd-specs/<feature>/usecases.synced.md` 记录每次同步（target、UC 映射、commit、触发来源）
+  - 提示用户单独 commit UC 同步改动，便于追溯
+- **`/tdd:archive` 归档前 UC 同步检查**
+  - 如果 `usecases.md` 存在但 `usecases.synced.md` 不存在，提示用户选择：先同步再归档 / 直接跳到同步步骤 / 跳过同步
+  - 归档时 `docs/usecases/*.md` 保持不动（项目长期文档），`usecases.md` 随 feature 目录归档
+
+### Changed
+
+- `/tdd:new` 创建 `tdd-specs/<name>/usecases.draft.md`（之前无 UC 产出）
+- SKILL.md 命令表标注 `/tdd:ff` 为 UseCase-first、`/tdd:e2e` 从 UC 派生、`/tdd:done` 包含 UC 同步、`/tdd:archive` 检查同步状态
+- README 新增 "UseCase-First 工作流" 章节说明
+
+### Decisions
+
+- **UC 编号规则**：Feature 内部 UC-01/02/03（局部编号），同步到 `docs/usecases/` 时自动映射为项目级连续编号
+- **同步时机**：`/tdd:done` Stage 4.2 交互式同步（不引入独立 sync 命令，保持命令数量最小）
+- **文档语言**：混合风格（字段名英文、描述中文），与现有 requirements/design/tasks 一致
+- **归档边界**：`docs/usecases/` 是项目长期文档不动，`tdd-specs/` 整体归档
+
 ## [2.3.0] — 2026-04-21
 
 ### Added
