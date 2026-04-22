@@ -28,16 +28,19 @@ Archive completed specs.
    If no notes, prompt to run `/tdd:notes` first. Do not block archival, but strongly recommend.
 
 3. **Check UseCase sync status**
+
+   **Config**: 读 `tdd-specs/.verify/project.md` 的 `paths.usecases`（默认 `docs/usecases`，enabled=true）。
+
    ```bash
    SPEC=$(cat tdd-specs/.current)
    if [ -f "tdd-specs/$SPEC/usecases.md" ] && [ ! -f "tdd-specs/$SPEC/usecases.synced.md" ]; then
-     echo "WARNING: usecases.md 存在但未同步到 docs/usecases/"
+     echo "WARNING: usecases.md 存在但未同步到项目级 UC 目录（${paths.usecases.dir} 或外部工具）"
      echo "→ 归档后 feature 内部的 UC 会埋在 archive/，PM/QA 看不到"
    fi
    ```
 
    如果 `usecases.md` 存在但 `usecases.synced.md` 不存在，用 **AskUserQuestion**：
-   > "该 feature 的 UseCase 尚未同步到 docs/usecases/（项目长期文档）。如何处理？"
+   > "该 feature 的 UseCase 尚未同步到项目级 UC 文档（${paths.usecases.dir} 或 ${paths.usecases.external_tool}）。如何处理？"
    > - [A] 先跑 /tdd:done Stage 4.2 同步，再归档（推荐）
    > - [B] 直接跳到同步步骤（不做完整 /tdd:done）
    > - [C] 跳过同步，归档时仅保留在 tdd-specs/archive/（UC 仅存在于归档目录）
@@ -62,12 +65,12 @@ Archive completed specs.
    echo "" > tdd-specs/.current
    echo "OK Archived to tdd-specs/archive/$MONTH/$SPEC/"
    ```
-   **注意**：`docs/usecases/*.md` 保持不动（是项目长期文档，不随 feature 归档），feature 目录下的 `usecases.md`、`usecases.synced.md` 会随目录一起归档到 `tdd-specs/archive/`。
+   **注意**：项目级 UC 目录（`${paths.usecases.dir}/*.md`）保持不动（是项目长期文档，不随 feature 归档），feature 目录下的 `usecases.md`、`usecases.synced.md` 会随目录一起归档到 `tdd-specs/archive/`。
 
 5. **Output**
    ```
    OK Archived: tdd-specs/archive/<YYYY-MM>/<name>/
-   UC Sync: <synced to docs/usecases/comments.md | skipped>
+   UC Sync: <synced to ${paths.usecases.dir}/comments.md | external | skipped>
    tdd-specs/.current cleared, ready for next feature.
    Run /tdd:new <next-feature> to begin.
    ```

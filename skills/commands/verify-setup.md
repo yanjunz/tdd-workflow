@@ -10,7 +10,7 @@ tags: [tdd, verify, setup, project-config]
 **什么时候跑**：项目第一次用 TDD Workflow，或者之前的 `project.md` 需要重做。
 
 **产物**：
-- `tdd-specs/.verify/project.md` — 验证配置（提交 git，团队共享）
+- `tdd-specs/.verify/project.md` — 验证配置（提交 git，团队共享），包含 commands / environments / flows / cleanup / **paths**（UseCase/Issue 文档位置）
 - `tdd-specs/.verify/project.env.example` — 敏感参数文档（说明需要哪些 shell 环境变量）
 - `scripts/deploy-staging.sh`（或类似）— 如果用户需要 staging 验证，生成部署脚本骨架
 - 自动更新 `.gitignore` 排除 `tdd-specs/.verify/project.local.md`
@@ -181,7 +181,98 @@ common_flows:
     - STAGING_API_TOKEN
 ```
 
-### 8. 写入文件
+### 8. Phase F: 项目文档路径配置
+
+配置项目的文档管理策略（UseCase / Issue 的存放位置）。
+
+#### F.1 UseCase 目录
+
+用 **AskUserQuestion**：
+
+```
+🤖 UseCase（用户流程文档）要放在哪？
+   [A] docs/usecases/（默认，推荐新项目）
+   [B] documentation/usecases/
+   [C] spec/usecases/
+   [D] 自定义路径（输入一个相对路径）
+   [E] 外部工具管理（Confluence / Notion / 飞书文档 / 其他 Wiki）
+   [F] 不需要 UseCase 文档（enabled=false）
+```
+
+如果选 E：
+
+```
+🤖 外部工具名称？（例：Confluence / Notion / 飞书 / 语雀 / 其他）
+👤 Confluence
+
+🤖 工作区链接？（/tdd:done 同步时会提示你打开这个链接）
+👤 https://company.atlassian.net/wiki/spaces/PROD
+```
+
+#### F.2 Issue 目录
+
+```
+🤖 Issue（Bug 追踪文档）要放在哪？
+   [A] docs/issues/（默认）
+   [B] documentation/issues/
+   [C] 自定义路径
+   [D] 外部工具管理（Jira / GitHub Issues / Linear / 其他）
+   [E] 不需要 Issue 文档
+```
+
+如果选 D：
+
+```
+🤖 外部工具名称？
+👤 Jira
+
+🤖 项目链接？（/tdd:bug 会提示你去这里创建 Issue）
+👤 https://company.atlassian.net/jira/projects/PROJ
+```
+
+#### F.3 Issue 编号策略（仅当本地管理时）
+
+```
+🤖 Issue 文件编号怎么生成？
+   [A] auto — 扫描已有最大编号 +1（推荐）
+   [B] manual — 每次问用户输入编号
+```
+
+#### F.4 Filename pattern（仅当本地管理时）
+
+```
+🤖 Issue 文件命名模板？
+   [A] <NNN>-<module>-<keyword>.md（默认，例 001-auth-token-expire.md）
+   [B] <YYYY-MM-DD>-<keyword>.md
+   [C] 自定义模板
+```
+
+把以上选择写入 `project.md` 的 `paths:` 节：
+
+```yaml
+paths:
+  usecases:
+    enabled: true                         # false 表示用外部工具
+    dir: "docs/usecases"                  # 或用户自定义的路径
+    index_file: "docs/usecases/README.md"
+    numbering: "auto"
+    # external_tool: "Confluence"         # 仅当 enabled=false
+    # external_url: "https://..."
+
+  issues:
+    enabled: true
+    dir: "docs/issues"
+    index_file: "docs/issues/README.md"
+    numbering: "auto"
+    filename_pattern: "<NNN>-<module>-<keyword>.md"
+```
+
+**边界情况**：
+- 如果 `enabled: false` + 没填 `external_tool` → 警告"后续 /tdd:bug 或 /tdd:done 会跳过此类文档同步"
+- 如果用户填的 dir 已存在其他文件 → 提示"此目录已有文件，新 UC/Issue 会并入其中"
+- 目录不存在时**不自动创建**，留到首次写入时再建
+
+### 9. 写入文件
 
 ```bash
 mkdir -p tdd-specs/.verify
@@ -198,10 +289,11 @@ else
 fi
 ```
 
-### 9. 输出 & 下一步提示
+### 10. 输出 & 下一步提示
 
 ```
 ✓ tdd-specs/.verify/project.md 已生成（7 commands / 2 environments / 3 flows / 5 cleanup steps）
+✓ paths 配置: usecases → docs/usecases/ | issues → docs/issues/
 ✓ scripts/deploy-staging.sh 骨架已生成（请完善 TODO 部分）
 ✓ tdd-specs/.verify/project.env.example 已生成（说明需要哪些 shell env）
 ✓ .gitignore 已更新
@@ -223,3 +315,5 @@ fi
 - **敏感参数不进文件** — API token / password 必须从 shell env 读，违反时要警告
 - **识别参数来源** — 每个 `${VAR}` 都要明确是个人参数/敏感参数/团队共享，避免用户混淆
 - **已有文件不破坏** — 如果 project.md 已存在，必须先 AskUserQuestion 确认覆盖方式
+- **paths 是配置入口** — 所有涉及 UC/Issue 路径的命令都从 paths 读，不允许硬编码 docs/usecases 或 docs/issues
+- **外部工具模式保守** — `enabled: false` 时，`/tdd:bug` 与 `/tdd:done` 不自动写外部工具，只输出内容提示用户手动粘贴

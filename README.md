@@ -16,6 +16,7 @@
 - [Multi-Agent 架构](#multi-agent-架构)
 - [UseCase-First 工作流](#usecase-first-工作流)
 - [Verification System](#verification-system)
+- [自定义文档路径](#自定义文档路径)
 - [完整工作流示例](#完整工作流示例)
 - [斜杠命令详解](#斜杠命令详解)
 - [Harness Hooks](#harness-hooks)
@@ -496,6 +497,79 @@ Stage 4: 交付确认
 5. 必填但未提供 → 报错
 
 敏感参数（`*_TOKEN` / `*_PASSWORD` / `*_SECRET` 等）建议从 shell env 或 1Password CLI 读，不写入任何文件。
+
+---
+
+## 自定义文档路径
+
+**不是所有项目都用 `docs/usecases/` 和 `docs/issues/`**。有些项目用 `documentation/`、`spec/`，有些团队干脆把 UseCase 管在 Confluence、把 Issue 管在 Jira。TDD Workflow 2.4.1 起支持在 `tdd-specs/.verify/project.md` 统一配置这些路径。
+
+### 配置方式
+
+`/tdd:verify-setup` 的 Phase F 会交互式问：
+
+```
+🤖 UseCase 要放在哪？
+   [A] docs/usecases/（默认）
+   [B] documentation/usecases/
+   [C] spec/usecases/
+   [D] 自定义路径
+   [E] 外部工具（Confluence / Notion / 飞书 / 语雀）
+   [F] 不需要
+
+🤖 Issue 要放在哪？
+   [A] docs/issues/（默认）
+   [B] documentation/issues/
+   [C] 自定义
+   [D] 外部工具（Jira / GitHub Issues / Linear）
+   [E] 不需要
+```
+
+结果写入 `tdd-specs/.verify/project.md`：
+
+```yaml
+paths:
+  usecases:
+    enabled: true
+    dir: "documentation/usecases"
+    index_file: "documentation/usecases/README.md"
+    numbering: "auto"            # auto | feature_local | manual
+
+  issues:
+    enabled: true
+    dir: "documentation/issues"
+    index_file: "documentation/issues/README.md"
+    numbering: "auto"
+    filename_pattern: "<NNN>-<module>-<keyword>.md"
+```
+
+### 外部工具模式
+
+如果 UseCase 由 Confluence 管理、Issue 由 Jira 管理，选 `enabled: false` + 填 `external_tool` / `external_url`：
+
+```yaml
+paths:
+  usecases:
+    enabled: false
+    external_tool: "Confluence"
+    external_url: "https://company.atlassian.net/wiki/spaces/PROD/pages/123456"
+
+  issues:
+    enabled: false
+    external_tool: "Jira"
+    external_url: "https://company.atlassian.net/jira/projects/PROJ"
+```
+
+这时：
+- `/tdd:bug` 不创建本地文件，而是输出 Issue 内容让你粘贴到 Jira，然后记录返回的 Issue ID（如 `PROJ-1234`）到追溯链
+- `/tdd:done` Stage 4.2 不写本地文件，而是输出 UC 内容 + 提示你打开 Confluence 链接手动更新
+- `/tdd:change` 对已同步 UC 的变更默认走"待同步"策略，交付时再人工更新外部
+
+**为什么不自动调 Jira/Confluence API？** 团队的权限、审批、模板各不相同，自动化容易踩坑。输出内容 + 提示是最稳的做法。
+
+### 向后兼容
+
+没配 `paths:` 节或没有 `project.md` 的项目会自动用 `docs/usecases/` 和 `docs/issues/` 作为默认，不会 break。
 
 ---
 

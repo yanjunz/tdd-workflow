@@ -9,6 +9,22 @@ Bug fix full workflow: traceable from problem description to Issue archive.
 
 ---
 
+## Config Loading (run at start)
+
+读取 `tdd-specs/.verify/project.md` 的 `paths.issues:` 节：
+- `enabled` — true = 本地目录管理；false = 外部工具管理
+- `dir` — 本地目录路径（默认 `docs/issues`）
+- `index_file` — README 索引文件路径
+- `numbering` — `auto` | `manual`
+- `filename_pattern` — 文件名模板（默认 `<NNN>-<module>-<keyword>.md`）
+- `external_tool` / `external_url` — 外部工具名和链接（仅 enabled=false 时）
+
+**回退**：project.md 不存在或缺 paths → 默认 `docs/issues/`, enabled=true, auto 编号。
+
+**外部工具模式（enabled=false）**：下面所有"创建文件"步骤改为"输出内容 + 提示用户去 `external_url` 创建"，并把用户返回的外部 Issue ID（如 PROJ-1234）记录到追溯链。
+
+---
+
 ## Steps
 
 ### 1. Collect Bug Information
@@ -21,15 +37,22 @@ Ask user (if description is incomplete):
 
 ### 2. Assign Issue Number (if project uses issues directory)
 
+**本地模式（paths.issues.enabled=true）**：
 ```bash
-ls docs/issues/*.md 2>/dev/null | grep -v README | sort | tail -1
-# Increment from last number, 3-digit format
+# Replace ${ISSUES_DIR} with paths.issues.dir from project.md (default docs/issues)
+ls ${ISSUES_DIR}/*.md 2>/dev/null | grep -v README | sort | tail -1
+# Increment from last number per paths.issues.numbering
 ```
-If project has no issues directory, use git issues / GitHub Issues or other tracking — same principles apply.
+
+**外部工具模式（enabled=false）**：
+```
+🤖 Issue 由 ${paths.issues.external_tool} 管理。
+   请在 ${paths.issues.external_url} 创建 Issue（内容见下一步），完成后告诉我 Issue ID。
+```
 
 ### 3. Create Issue Draft
 
-Create document at `docs/issues/<NNN>-<module>-<keyword>.md`, **status: "investigating"**:
+**本地模式**：在 `${paths.issues.dir}/<filename-per-pattern>.md` 创建，**status: "investigating"**:
 
 ```markdown
 # Issue #NNN — <one-line description>
@@ -49,15 +72,17 @@ Create document at `docs/issues/<NNN>-<module>-<keyword>.md`, **status: "investi
 > Pending investigation
 ```
 
-Update `docs/issues/README.md` table (status: Investigating).
+**外部工具模式**：把上述内容粘贴到 `${paths.issues.external_url}` 并记录返回的外部 Issue ID。
+
+Update `${paths.issues.index_file}` table (status: Investigating)（仅本地模式）。
 
 ### 4. Root Cause Analysis
 
 Follow `systematic-debugging` principles: **no guessing, find root cause first.**
 
 ```bash
-# Check existing Issues to avoid duplicate investigation (if project has issues directory)
-grep -rl "<error-keywords>" docs/issues/ 2>/dev/null || echo "No issues directory"
+# Check existing Issues to avoid duplicate investigation (if paths.issues.enabled=true)
+grep -rl "<error-keywords>" ${ISSUES_DIR}/ 2>/dev/null || echo "No issues directory"
 
 # Locate code (adjust based on actual project directory structure)
 grep -rn "<keyword>" src/ 2>/dev/null || grep -rn "<keyword>" . --include="*.ts" --include="*.js" --include="*.py"
@@ -148,7 +173,7 @@ Fill in remaining sections:
 - **Verification Steps**: Executable commands
 - **Status**: Change to `Fixed`
 
-Update `docs/issues/README.md` status column.
+Update `${paths.issues.index_file}` status column（本地模式；外部工具模式下更新外部 Issue 状态）。
 
 ### 8. Retrospective (mandatory — cannot skip)
 
@@ -211,7 +236,7 @@ Output status line after each phase:
 [RED]         Test written, failure reason: <error message>
 [GREEN]       Fix complete, tests passing
 [Retro]       Category: <category> | Prevention: <action summary> | Similar: <N found>
-[Done]        Issue #NNN archived, docs/issues/<filename>.md
+[Done]        Issue #NNN archived, ${paths.issues.dir}/<filename>.md (or external: ${paths.issues.external_tool})
 ```
 
 If same test fails 3 times during fix, trigger **Three-Strike Protocol** (same as `/tdd:loop`).

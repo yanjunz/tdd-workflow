@@ -38,8 +38,8 @@ Mid-course requirement change flow. Safely modify requirements during Phase 2 or
    cat tdd-specs/$SPEC/requirements.md
    cat tdd-specs/$SPEC/design.md
    cat tdd-specs/$SPEC/tasks.md
-   # 检查是否已同步到 docs/usecases/
-   cat tdd-specs/$SPEC/usecases.synced.md 2>/dev/null || echo "(未同步到 docs/)"
+   # 检查是否已同步到项目级 UC 目录（paths.usecases.dir，默认 docs/usecases）
+   cat tdd-specs/$SPEC/usecases.synced.md 2>/dev/null || echo "(未同步到项目级 UC)"
    ```
 
    Output impact assessment（**UseCase 维度放最前面**）：
@@ -71,7 +71,7 @@ Mid-course requirement change flow. Safely modify requirements during Phase 2 or
 
    ### UC 同步状态（影响后续动作）
    - usecases.synced.md 记录: <日期 + target> 或 "从未同步"
-   - 受影响 UC 是否已同步 docs/: <Yes/No>
+   - 受影响 UC 是否已同步项目级 UC 目录（paths.usecases.dir）: <Yes/No>
    - 推荐同步策略: <见 Step 4>
 
    ### Risk Notes
@@ -87,11 +87,15 @@ Mid-course requirement change flow. Safely modify requirements during Phase 2 or
    - Option B: Adjust change description (return to step 2)
    - Option C: Cancel, no modifications
 
-   **如果影响的 UC 已同步到 docs/**（usecases.synced.md 有记录），额外询问同步策略：
-   > "UC-01 之前已同步到 docs/usecases/comments.md (commit abc123)。本次变更如何处理同步？"
-   - [A] 标记为"待同步"，本次只改 tdd-specs，交付时（/tdd:done Stage 4.2）再同步 docs/（推荐）
-   - [B] 立即同步到 docs/usecases/comments.md（保持实时一致）
-   - [C] 只改 tdd-specs，不动 docs（不推荐，会偏离权威文档）
+   **如果影响的 UC 已同步到项目级 UC 目录**（usecases.synced.md 有记录），额外询问同步策略。先读 `paths.usecases.enabled`：
+
+   - **本地模式（enabled=true）**：
+     > "UC-01 之前已同步到 ${paths.usecases.dir}/comments.md (commit abc123)。本次变更如何处理同步？"
+     - [A] 标记为"待同步"，本次只改 tdd-specs，交付时（/tdd:done Stage 4.2）再同步（推荐）
+     - [B] 立即同步到 ${paths.usecases.dir}/comments.md（保持实时一致）
+     - [C] 只改 tdd-specs，不动项目级文档（不推荐，会偏离权威文档）
+
+   - **外部工具模式（enabled=false）**：默认走 [A]（标记待同步），/tdd:done 时再提示用户去 `external_url` 手动更新。
 
 5. **Execute updates (after user confirmation)**
 
@@ -101,7 +105,7 @@ Mid-course requirement change flow. Safely modify requirements during Phase 2 or
    - 在 usecases.md 顶部"变更记录"区追加日期 + 变更点
    - 如果选了 [A]（标记待同步），在 usecases.md 顶部加一个标记：
      ```markdown
-     > ⚠ Pending sync to docs/usecases/comments.md
+     > ⚠ Pending sync to ${paths.usecases.dir}/comments.md (or external:${paths.usecases.external_tool})
      > Changed since last sync: UC-01 step 2/6, new UC-01 备选 3c
      ```
 
@@ -124,10 +128,11 @@ Mid-course requirement change flow. Safely modify requirements during Phase 2 or
    - Incomplete tasks needing description changes: modify directly
    - New tasks: append to corresponding Phase，标注 "Covers UC-01 备选 3c"
 
-   **5.4 Update docs/usecases/ 权威文档（仅选 [B] 时执行）**
-   - 如果用户选了 [B]（立即同步），复制 usecases.md 变更到 docs/usecases/ 对应文件
-   - 处理 UC 编号映射（feature 内 UC-01 → 项目级 UC-025）
+   **5.4 Update 项目级 UC 文档（仅本地模式 + 选 [B] 时执行）**
+   - 如果 `paths.usecases.enabled=true` 且用户选了 [B]（立即同步），复制 usecases.md 变更到 `${paths.usecases.dir}/` 对应文件
+   - 处理 UC 编号映射（feature 内 UC-01 → 项目级 UC-025，按 `paths.usecases.numbering`）
    - 更新 usecases.synced.md 追加同步记录
+   - 外部工具模式：跳过本步骤，待 /tdd:done 时提示手动同步
 
    **5.5 保留执行 UseCase 草稿/其他项目文档变化检查**（原有步骤保留）
 
@@ -157,6 +162,6 @@ Mid-course requirement change flow. Safely modify requirements during Phase 2 or
 - **usecases.md 必须最先更新**，其他文档从 UC cascade
 - Completed tasks must be reverted if affected — no "good enough" shortcuts
 - Change records must be written to usecases.md AND requirements.md for traceability
-- **已同步到 docs/ 的 UC 变更必须询问同步策略** — 不能默默让 docs/ 偏离
+- **已同步到项目级 UC 目录的变更必须询问同步策略** — 不能默默让权威文档偏离
 - UseCase docs must be updated if visible behavior changes
 - If change causes 10+ task reverts, additionally prompt user to consider a fresh `/tdd:ff`

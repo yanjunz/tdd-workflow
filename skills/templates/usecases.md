@@ -9,7 +9,7 @@
 
 这份 UseCase 文档是 `/tdd:ff` 的**主产出**，描述用户视角的完整交互故事。其他三份文档（requirements.md / design.md / tasks.md）都从这里派生。
 
-Feature 内部使用 UC-01、UC-02 等局部编号；`/tdd:done` Stage 4.2 同步到 `docs/usecases/` 时自动映射为项目全局编号。
+Feature 内部使用 UC-01、UC-02 等局部编号；`/tdd:done` Stage 4.2 同步到项目级 UC 目录（由 `paths.usecases.dir` 配置，默认 `docs/usecases/`）时自动映射为项目全局编号。
 
 ---
 

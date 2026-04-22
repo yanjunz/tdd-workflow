@@ -29,9 +29,12 @@ If no active spec, first run `/tdd:new`.
 
 ### 2. Review known Issues (if project has issues directory)
 
+**Config**: 读取 `tdd-specs/.verify/project.md` 的 `paths.issues.dir`（默认 `docs/issues`），如果 `enabled=false` 则跳过本地扫描，改为提示用户去 `external_url` 搜相关 Issue。
+
 ```bash
-ls docs/issues/*.md 2>/dev/null | grep -v README || echo "No issues directory, skipping"
-grep -rl "<feature-keywords>" docs/issues/ 2>/dev/null || true
+# ISSUES_DIR 从 paths.issues.dir 解析（默认 docs/issues）
+ls ${ISSUES_DIR}/*.md 2>/dev/null | grep -v README || echo "No issues directory, skipping"
+grep -rl "<feature-keywords>" ${ISSUES_DIR}/ 2>/dev/null || true
 ```
 
 If related records found, note issue IDs to reference in usecases.md / requirements.md.
@@ -64,7 +67,7 @@ cat tdd-specs/$SPEC/usecases.draft.md 2>/dev/null
 
 #### 3.3 UC 内部编号
 
-Feature 内部用 UC-01、UC-02 顺序编号。同步到项目级 `docs/usecases/` 时（`/tdd:done` Stage 4.2）会自动映射为全局编号。
+Feature 内部用 UC-01、UC-02 顺序编号。同步到项目级 UC 目录时（`/tdd:done` Stage 4.2，目标目录由 `paths.usecases.dir` 决定，默认 `docs/usecases/`；外部工具模式下输出内容让用户手动同步）会自动映射为全局编号。
 
 #### 3.4 UC 覆盖度自检（mandatory）
 

@@ -30,7 +30,7 @@ metadata:
 | `/tdd:verify-setup` | Interactive project-level verify config (tdd-specs/.verify/project.md) |
 | `/tdd:verify-local` | Interactive personal verify params (tdd-specs/.verify/project.local.md, gitignored) |
 | `/tdd:cleanup [env]` | Manual cleanup — run pre_verify_cleanup without running verification itself |
-| `/tdd:done` | **4-stage verification**: code checks → local E2E → staging → delivery (includes UC sync to docs/usecases/) |
+| `/tdd:done` | **4-stage verification**: code checks → local E2E → staging → delivery (includes UC sync to `paths.usecases.dir`, default `docs/usecases/`) |
 | `/tdd:notes` | Generate TDD practice notes — record decisions, pitfalls, lessons learned |
 | `/tdd:bug` | Bug fix workflow: report -> analyze -> test -> fix -> verify |
 | `/tdd:continue <name>` | Resume in-progress feature |
@@ -91,12 +91,13 @@ Output after collection:
 **Fast-forward: generate requirements -> design -> tasks in one shot.**
 
 1. If `tdd-specs/<name>/` doesn't exist, first run `/tdd:new` requirements gathering
-2. **Step 1: Review known Issues** (if project has issues directory)
+2. **Step 1: Review known Issues** (if project uses issues directory; path from `paths.issues.dir` in `tdd-specs/.verify/project.md`, defaults to `docs/issues`)
    ```bash
-   ls docs/issues/*.md 2>/dev/null | grep -v README || echo "No issues directory, skipping"
-   grep -rl "<feature-keywords>" docs/issues/ 2>/dev/null || true
+   # ISSUES_DIR resolves to paths.issues.dir (default: docs/issues). External-tool mode: skip local scan.
+   ls ${ISSUES_DIR}/*.md 2>/dev/null | grep -v README || echo "No issues directory, skipping"
+   grep -rl "<feature-keywords>" ${ISSUES_DIR}/ 2>/dev/null || true
    ```
-3. **Step 2: Update UseCase docs** (if project has `docs/usecases/`, otherwise skip)
+3. **Step 2: Update UseCase docs** (target dir from `paths.usecases.dir`, default `docs/usecases/`; external-tool mode prompts manual sync)
 4. **Step 3: Generate `tdd-specs/<name>/requirements.md`**
 5. **Step 4: Generate `tdd-specs/<name>/design.md`** (incorporating actual project tech stack)
 6. **Step 5: Generate `tdd-specs/<name>/tasks.md`** (using actual project test commands and paths)
@@ -151,9 +152,9 @@ Ready! Run /tdd:loop to start TDD implementation.
 
 **Write minimum code to pass current test (TDD Green phase).**
 
-**Step 0 (mandatory): Check Issues first** (if project has issues tracking)
+**Step 0 (mandatory): Check Issues first** (if project has issues tracking; path from `paths.issues.dir`)
 ```bash
-grep -rl "<error-keywords>" docs/issues/ 2>/dev/null || echo "No existing records"
+grep -rl "<error-keywords>" ${ISSUES_DIR}/ 2>/dev/null || echo "No existing records"
 ```
 
 1. Write only the minimum code to pass the test — no premature abstraction

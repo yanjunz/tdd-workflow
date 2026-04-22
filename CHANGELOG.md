@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.1] — 2026-04-20
+
+### Added
+
+- **项目文档路径可配置** — `docs/usecases/` 和 `docs/issues/` 不再硬编码，改由 `tdd-specs/.verify/project.md` 的 `paths:` 节统一管理
+  - 新增 `paths.usecases`：`enabled` / `dir` / `index_file` / `numbering`（`auto` | `feature_local` | `manual`） / `external_tool` / `external_url`
+  - 新增 `paths.issues`：`enabled` / `dir` / `index_file` / `numbering`（`auto` | `manual`） / `filename_pattern` / `external_tool` / `external_url`
+  - 没有 `project.md` 或缺 `paths:` 节时自动回退到默认 `docs/usecases/` 与 `docs/issues/`（向后兼容，现有项目无需改动）
+- **外部工具模式** — 当 `enabled: false` 时，`/tdd:bug` / `/tdd:done` / `/tdd:change` 会改为输出内容 + 提示用户去 `external_url` 手动同步（适合 Jira、Confluence、Notion、飞书等由外部工具管理的项目）
+- **`/tdd:verify-setup` Phase F** — 交互式收集 UC/Issue 目录、编号策略、外部工具链接
+
+### Changed
+
+- `/tdd:ff` Step 2 读取 `paths.issues.dir` 查找 Issue，外部工具模式改为提示搜索链接
+- `/tdd:bug` 开头新增 "Config Loading"，Issue 创建路径和 index_file 路径从 paths 读，外部工具模式只输出内容等用户手动创建
+- `/tdd:done` Stage 4.2 同步目标从 `paths.usecases.dir` 读，外部工具模式输出 UC 内容提示手动更新
+- `/tdd:change` 同步策略提示按 `paths.usecases.enabled` 分支，外部模式默认走"待同步"
+- `/tdd:archive` UC 同步状态检查按 paths 配置提示
+- `skills/SKILL.md` 所有硬编码 `docs/issues/` / `docs/usecases/` 改为从 paths 读，保留 fallback 默认值说明
+
+### Fixed
+
+- 文档目录不是 `docs/` 的项目（如用 `documentation/`、`spec/`）之前无法配置，现在通过 `paths:` 节可以任意指定
+
 ## [2.4.0] — 2026-04-22
 
 ### Added

@@ -341,9 +341,16 @@ sed -i '' 's/verify_stage=.*/verify_stage=4/' "tdd-specs/$SPEC/.harness"
 - <IDs 或 none>
 ```
 
-#### 8.2 同步 UseCases 到 docs/usecases/
+#### 8.2 同步 UseCases 到项目级 UseCase 文档
 
-> 把 feature 内部的 `usecases.md` 同步到项目全局 `docs/usecases/`，让 PM/QA 可查阅最新的用户流程文档。
+**Config**: 读取 `tdd-specs/.verify/project.md` 的 `paths.usecases:` 节：
+- `enabled: true` → 本地目录同步（默认）
+- `enabled: false` → 外部工具模式（仅输出内容，提示用户手动同步到 `external_url`）
+- `dir` — 目标目录（默认 `docs/usecases`）
+- `index_file` — README 索引文件
+- `numbering` — `auto`（项目级全局编号） | `feature_local`（保留 UC-01/02） | `manual`（每次问）
+
+> 把 feature 内部的 `usecases.md` 同步到项目全局 UC 目录，让 PM/QA 可查阅最新的用户流程文档。
 
 ```bash
 # 先检查 usecases.md 是否存在
@@ -353,19 +360,38 @@ if [ ! -f "tdd-specs/$SPEC/usecases.md" ]; then
 fi
 ```
 
-1. **检查 docs/usecases/ 现状**
+**外部工具模式（enabled=false）**：
+
+```
+🤖 UseCase 由 ${paths.usecases.external_tool} 管理（paths.usecases.enabled=false）
+   
+   本次要同步的 UseCases:
+     UC-01 <标题>
+     UC-02 <标题>
+   
+   下面是完整内容（可复制粘贴）：
+   <usecases.md 内容>
+   
+   请打开 ${paths.usecases.external_url} 手动更新，完成后按回车。
+```
+
+然后跳到 Step 6（写同步记录）。
+
+**本地模式（enabled=true）**，继续下面流程，用 `${UC_DIR}` 表示 `paths.usecases.dir`：
+
+1. **检查 ${UC_DIR}/ 现状**
    ```bash
-   if [ -d docs/usecases ]; then
-     ls docs/usecases/*.md 2>/dev/null | grep -v README
+   if [ -d ${UC_DIR} ]; then
+     ls ${UC_DIR}/*.md 2>/dev/null | grep -v README
      # 统计每个文件的 UC 数量
    else
-     echo "docs/usecases/ 不存在"
+     echo "${UC_DIR}/ 不存在"
    fi
    ```
 
 2. **用 AskUserQuestion 询问同步方式**
-   > "Feature 内有 N 个 UseCases，如何同步到 docs/usecases/？"
-   > - [A] 创建新文件 `docs/usecases/<suggested>.md`（推荐，新领域）
+   > "Feature 内有 N 个 UseCases，如何同步到 ${UC_DIR}/？"
+   > - [A] 创建新文件 `${UC_DIR}/<suggested>.md`（推荐，新领域）
    > - [B] 追加到现有文件（然后再选择哪个文件）
    > - [C] 拆分到多个文件（描述拆分方案）
    > - [D] 跳过同步（仅 tdd-specs 保留）
@@ -376,14 +402,14 @@ fi
    ```bash
    # 建议文件名基于 feature name 或 UC 内容领域
    # 例: blog-comments → comments.md
-   cp tdd-specs/$SPEC/usecases.md docs/usecases/<target>.md
-   # 然后在文件头加同步元信息、重新编号 UC
+   cp tdd-specs/$SPEC/usecases.md ${UC_DIR}/<target>.md
+   # 然后在文件头加同步元信息、按 paths.usecases.numbering 规则重新编号 UC
    ```
 
-   **方式 [B] 追加到现有文件**：
+   **方式 [B] 追加到现有文件**（仅 numbering=auto 时做编号映射）：
    ```bash
    # 先读取现有文件的最大 UC 编号
-   grep -E '^## UC-[0-9]+' docs/usecases/<target>.md | tail -1
+   grep -E '^## UC-[0-9]+' ${UC_DIR}/<target>.md | tail -1
    # 例: 现有最大 UC-024，本次追加的 UC-01 → UC-025, UC-02 → UC-026
    ```
    追加时处理 UC 编号映射：
@@ -395,18 +421,18 @@ fi
 
    **方式 [C] 拆分**：按用户描述拆分到多个目标文件。
 
-   **方式 [D] 跳过**：不做任何 docs/ 修改，只记录"已决定跳过"到 synced.md。
+   **方式 [D] 跳过**：不做任何 ${UC_DIR}/ 修改，只记录"已决定跳过"到 synced.md。
 
-4. **处理 docs/usecases/ 目录不存在的场景**
+4. **处理 ${UC_DIR}/ 目录不存在的场景**
    用 AskUserQuestion：
-   > "docs/usecases/ 目录不存在，如何处理？"
+   > "${UC_DIR}/ 目录不存在，如何处理？"
    > - [A] 创建该目录 + 同步到 comments.md
-   > - [B] 用其他路径（输入路径，如 docs/specs/usecases/）
+   > - [B] 用其他路径（输入路径，覆盖本次，不改 project.md）
    > - [C] 跳过项目级同步
 
-5. **更新 docs/usecases/README.md 索引（如果存在）**
+5. **更新 ${paths.usecases.index_file}（如果存在）**
    ```bash
-   if [ -f docs/usecases/README.md ]; then
+   if [ -f ${INDEX_FILE} ]; then
      # 在索引表追加本次新增的 UC
      echo "(建议用户手动检查 README.md 是否需要更新)"
    fi
@@ -417,8 +443,8 @@ fi
    # UseCase Sync Log — <feature>
 
    ## YYYY-MM-DD HH:MM
-   - Target: docs/usecases/comments.md (new file / appended / split)
-   - Sync mode: [A] / [B] / [C] / [D]
+   - Target: ${UC_DIR}/comments.md (new file / appended / split) | external:${paths.usecases.external_tool}
+   - Sync mode: [A] / [B] / [C] / [D] / external
    - UC 编号映射:
      - UC-01 (feature) → UC-025 (project)
      - UC-02 (feature) → UC-026 (project)
@@ -426,8 +452,8 @@ fi
    - Triggered by: /tdd:done Stage 4.2
    ```
 
-7. **提示用户单独 commit 这次同步**
-   > 建议把这次 UseCase 同步单独 commit（消息如 "docs: sync <feature> usecases to docs/usecases/"），便于后续追溯。
+7. **提示用户单独 commit 这次同步**（本地模式）
+   > 建议把这次 UseCase 同步单独 commit（消息如 "docs: sync <feature> usecases to ${UC_DIR}/"），便于后续追溯。
 
 #### 8.3 最终提示
 
@@ -438,7 +464,7 @@ fi
 
 交付报告: tdd-specs/<name>/verification-report.md
 UC 同步记录: tdd-specs/<name>/usecases.synced.md
-docs/usecases 更新: <yes/no>
+项目级 UC 更新: <yes/no/external>
 监控链接: <从 project.md 读取>
 
 下一步:
@@ -478,6 +504,8 @@ docs/usecases 更新: <yes/no>
 - **verification-report 必须生成** — 即使失败也生成（记录失败状态），便于复盘
 - **退化模式要降级** — 没有 verify 配置时，不要假装做了 4 阶段验证
 - **失败时不自动重试** — 交给用户决策，避免无限循环
-- **UC 同步是交互式的** — 不能默默复制到 docs/usecases/，必须让用户选择同步方式
+- **UC 同步是交互式的** — 不能默默复制到项目级 UC 目录，必须让用户选择同步方式
 - **UC 编号映射必须记录** — usecases.synced.md 要清楚记录 feature 内编号 → 项目级编号的对应关系
-- **docs/usecases/ 保持稳定** — 除非用户明确选择同步，不要修改已有的 docs/usecases/ 内容
+- **项目级 UC 目录保持稳定** — 除非用户明确选择同步，不要修改已有内容
+- **从 paths 配置读路径** — 所有 UC 路径引用都从 `paths.usecases` 读，不硬编码 `docs/usecases/`
+- **外部工具模式不自动写** — enabled=false 时只输出内容 + 提示，不调用外部 API

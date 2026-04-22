@@ -71,6 +71,30 @@ api_health:
 monitoring:
   dashboard_url: null                          # 例: "https://grafana.example.com/xxx"
   log_query: null                              # 例: "kubectl logs -n prod -l app=myapp"
+
+# ============ 项目文档路径 ============
+# 项目级文档目录。不配置时用下方默认值（向后兼容）。
+paths:
+  # UseCase 文档（PM/QA 查阅的用户流程权威文档）
+  usecases:
+    enabled: true                              # false = 不做本地同步（外部工具管理）
+    dir: "docs/usecases"                        # 本地目录（默认 docs/usecases）
+    index_file: "docs/usecases/README.md"       # 可选索引文件
+    numbering: "auto"                           # auto 自动项目级递增 | feature_local 保留 UC-01/02 | manual 每次问
+    # 如果用外部工具管理 UC，取消注释并设置 enabled=false：
+    # external_tool: "Confluence"
+    # external_url: "https://company.atlassian.net/wiki/spaces/PROD/pages/xxx"
+
+  # Issue 归档（Bug 追踪文档）
+  issues:
+    enabled: true
+    dir: "docs/issues"                          # 默认 docs/issues
+    index_file: "docs/issues/README.md"         # 可选索引
+    numbering: "auto"                           # auto 扫描现有最大编号 +1 | manual
+    filename_pattern: "<NNN>-<module>-<keyword>.md"  # NNN 自动编号，<module>/<keyword> 由用户填
+    # 如果用外部工具（Jira/GitHub Issues），取消注释并设置 enabled=false：
+    # external_tool: "Jira"
+    # external_url: "https://company.atlassian.net/jira/projects/PROJ"
 ---
 
 # 项目验证手册
