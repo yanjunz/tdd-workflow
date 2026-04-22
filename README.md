@@ -222,6 +222,65 @@ usecases.md (主产出)
     └─→ E2E tests        (每个 UC 路径一个 E2E，命名 "UC-N: <路径>")
 ```
 
+### 为什么 UseCase 应该是主产出
+
+UseCase 解决的问题是 **requirements.md 替代不了的**——requirements 是声明性的（"系统应支持评论"），UseCase 是过程性的（用户点什么 → 系统做什么 → 用户看到什么）。
+
+#### 1. UseCase 和 requirements 解决的问题不同
+
+- **requirements.md**：REQ-01 "系统应支持用户发表评论"（**声明性**，what）
+- **UseCase**：从用户视角的完整交互故事（**过程性**，how & when）
+
+UseCase 能表达 requirements 无法表达的东西：前端反馈、状态保留、错误恢复、用户感知。例如"评论超长时要高亮超出部分并保留输入"——这是用户体验，不是 AC 能说清的。
+
+#### 2. UseCase 是 E2E 测试的天然蓝图
+
+之前 `/tdd:e2e` 让 AI 自己发明 E2E 测试用例，容易漏掉关键路径。现在：
+
+```
+UC-01 的每条路径 → 一个 E2E 测试用例
+  成功路径 → 正向 E2E
+  备选 3a (内容为空) → 前端校验 E2E
+  备选 3b (内容超长) → 边界校验 E2E
+  备选 4a (DB 失败) → 错误恢复 E2E
+```
+
+E2E 测试覆盖率直接由 UseCase 决定，不再是"AI 觉得该测什么"。
+
+#### 3. UseCase 是 Verification System 的 flows 来源
+
+Verification System 里的 `feature_specific_flows` 其实就是 UseCase 的另一种表达。有了 usecases.md，Stage 2 验证流程可以自动从 UseCase 派生，省去手工填写 `verify.md`。
+
+#### 4. UseCase 是需求变更的影响分析载体
+
+之前 `/tdd:change` 直接从 REQ 推 task，缺少中间的用户视角桥梁。有了 UseCase：
+
+```
+变更："评论支持 Markdown"
+  ↓
+UC-01 的哪些步骤变了？
+  步骤 1: 输入框 → 改为支持 Markdown 编辑器
+  步骤 6: 追加到列表 → 渲染需要解析 Markdown
+  新增备选 3c: Markdown 语法错误 → 如何反馈？
+  ↓
+自然推导出 requirements / design / tasks 的变更点
+```
+
+分析链路完整、可追溯，不会漏改文档。
+
+#### 5. UseCase 是跨角色沟通的通用语言
+
+非开发角色看不懂 EARS 格式的 requirements 或 design 的技术细节。但 UseCase 他们能看懂：
+
+| 角色 | 能看懂 requirements.md？ | 能看懂 usecases.md？ |
+|------|--------------------------|----------------------|
+| 产品经理 | ❌ EARS 语法太技术 | ✅ "用户做 X → 系统做 Y" |
+| QA | 部分能 | ✅ 直接能照着测 |
+| 设计师 | ❌ | ✅ 流程清晰 |
+| 新同事 | 难以快速理解 | ✅ 从用户视角入手最快 |
+
+这也是为什么 `/tdd:done` Stage 4.2 要把 UC 同步到项目全局 `docs/usecases/`——让 PM/QA/新同事都能查到最新的用户流程。
+
 ### UseCase 结构
 
 ```markdown
@@ -604,6 +663,27 @@ Run /tdd:archive to archive specs.
 自动循环 red → green → refactor，直到 `tasks.md` Phase 2 全部 `[x]`。
 
 每轮循环开始前执行 **任务完整性扫描**，检查是否遗漏了错误响应解析、崩溃恢复、超时处理、集成测试等场景。
+
+#### 为什么 `/tdd:loop` 和 `/tdd:e2e` 分开
+
+`/tdd:loop` 负责 **Phase 2**（单元测试 + 集成测试），`/tdd:e2e` 负责 **Phase 3**（端到端测试）。分开的核心原因是两者的**速度、依赖、失败语义、触发频率**完全不同：
+
+| 维度 | `/tdd:loop` (Phase 2) | `/tdd:e2e` (Phase 3) |
+|------|----------------------|----------------------|
+| **速度** | 秒级（单测几秒，集成几十秒） | 分钟级（E2E 动辄几分钟） |
+| **依赖** | 纯代码，mock 掉外部依赖 | 需要跑起来真实服务、浏览器自动化 |
+| **失败语义** | 实现有 bug，改代码 | 可能是 bug / 集成问题 / 环境问题 |
+| **触发频率** | 每个 task 一轮（十几次～几十次） | Phase 2 完成后一次 |
+| **硬规则** | 测试行为而非实现 | 必须经过真实网络层、关键字段断言 |
+
+**速度是最关键的**。TDD 的核心价值是**快速反馈循环**——写个测试立刻看它失败、改代码立刻看它通过。如果每轮循环要等 5 分钟 E2E，TDD 就废了。
+
+**合并的代价**：每 loop 一轮就重启环境、拉浏览器、跑 E2E，大部分 E2E 是重复在跑（因为底层代码没变就只是加了下一个单测）。单测覆盖的场景，E2E 再跑一遍没价值。
+
+**分开的好处**：
+- `/tdd:loop` 保持快速紧凑反馈
+- `/tdd:e2e` 集中在 Phase 2 完成后一次性验收所有用户路径（从 `usecases.md` 派生，见 [UseCase-First 工作流](#usecase-first-工作流)）
+- 失败排查路径清晰——单测失败看 assertion，E2E 失败查日志/浏览器/数据库
 
 ### `/tdd:bug` — Bug 修复流程
 
