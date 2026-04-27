@@ -14,7 +14,7 @@ CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
 [ -z "$CWD" ] && CWD="$PWD"
 cd "$CWD" 2>/dev/null || { log "cannot cd $CWD"; exit 0; }
 
-SPEC=$(cat tdd-specs/.current 2>/dev/null)
+SPEC=$(cat tdd-specs/.current 2>/dev/null | tr -d '\r\n')
 H="tdd-specs/$SPEC/.harness"
 
 TOOL=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)

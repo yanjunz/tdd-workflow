@@ -20,7 +20,7 @@ CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
 [ -z "$CWD" ] && CWD="$PWD"
 cd "$CWD" 2>/dev/null || { log "cannot cd $CWD"; exit 0; }
 
-SPEC=$(cat tdd-specs/.current 2>/dev/null)
+SPEC=$(cat tdd-specs/.current 2>/dev/null | tr -d '\r\n')
 
 if [ -z "$SPEC" ]; then
   log "no active spec (tdd-specs/.current empty)"

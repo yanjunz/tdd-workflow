@@ -100,6 +100,24 @@ write_harness green
 j='{"cwd":"'"$PWD"'","hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"'"$SRC_FILE"'","old_string":"a","new_string":"b"}}'
 check "GREEN + src file → allow" 0 "$(run_hook "$H/pre-write-edit.sh" "$j")"
 
+# Regression: .current with leading/trailing newlines must still resolve to
+# the correct spec (bug fixed in 2.4.4 — previously the hook silently allowed
+# everything because "\nfoo" / "foo\n" couldn't locate the .harness file).
+write_harness red
+printf '\n_verify_test\n' > tdd-specs/.current  # bracket the name with newlines
+j='{"cwd":"'"$PWD"'","hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"'"$SRC_FILE"'","old_string":"a","new_string":"b"}}'
+check ".current with newlines → still blocks RED" 2 "$(run_hook "$H/pre-write-edit.sh" "$j")"
+echo "_verify_test" > tdd-specs/.current  # restore clean form for remaining tests
+
+# Regression: .current with leading/trailing newlines must still resolve to
+# the correct spec (bug fixed in 2.4.4 — previously the hook silently allowed
+# everything because "\nfoo" / "foo\n" couldn't locate the .harness file).
+write_harness red
+printf '\n_verify_test\n' > tdd-specs/.current  # bracket the name with newlines
+j='{"cwd":"'"$PWD"'","hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"'"$SRC_FILE"'","old_string":"a","new_string":"b"}}'
+check ".current with newlines → still blocks RED" 2 "$(run_hook "$H/pre-write-edit.sh" "$j")"
+echo "_verify_test" > tdd-specs/.current  # restore clean form for remaining tests
+
 echo "── PostToolUse/Bash ──"
 write_harness green 0
 j='{"cwd":"'"$PWD"'","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"npm test"},"tool_response":"1 FAILED"}'

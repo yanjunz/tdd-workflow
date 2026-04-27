@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.4] — 2026-04-28
+
+### Fixed
+
+- **严重 bug**: `.current` 文件含前导或尾部换行（比如被编辑器自动加换行、或 /tdd:new 写入时误加）时，`SPEC` 被读成 `\nfoo` 或 `foo\n`，拼出的 harness 路径含换行符 → `[ ! -f "$H" ]` 判定 "无 harness" → hook 完全静默放行。相当于 RED 阻断、Strike 计数全部失效。
+  - 修复：所有 5 个脚本的 `SPEC=$(cat tdd-specs/.current)` 统一加 `| tr -d '\r\n'`
+  - 这也顺便修了日志里出现的 "spec=\nbackend-test-coverage" 多行显示
+- **post-bash 大 payload 处理**：原实现 `INPUT=$(cat)` + `printf '%s' "$INPUT" | jq` 把整个 tool_response（可能是 MB 级的 `lsof` / `grep` 输出）装入 shell 字符串变量再 fork 给 jq，慢且占内存。改为**先 buffer 到临时文件**，jq 直接从文件读。1MB payload 从未测数据 → 0.13s 完成。
+  - `INPUT_BYTES` 也记入日志，方便诊断"是不是 payload 太大"
+
+### Changed
+
+- post-bash.sh 重构：用临时文件 + `jq < $TMP` 替代内存字符串；trap 清理；保持功能等价。其他 4 个脚本维持 `INPUT=$(cat)` 方案（它们的 payload 小，不需要）
+
 ## [2.4.3] — 2026-04-27
 
 ### Changed
