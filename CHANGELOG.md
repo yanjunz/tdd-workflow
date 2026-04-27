@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.2] — 2026-04-27
+
+### Fixed
+
+- **Hook scripts 不再触发 "PreToolUse/PostToolUse:Bash hook error" 噪音**
+  - 根因 1：旧脚本读 `$CLAUDE_TOOL_INPUT` / `$CLAUDE_FILE_PATH` 环境变量，Claude Code 实际把 hook 事件 JSON 从 **stdin** 传入，这些变量根本不存在；改为 `jq -r '.tool_input.command'` 从 stdin 读
+  - 根因 2：Pre/PostToolUse hook 往 stdout `echo` 提醒文字，而 Claude Code 只对 `UserPromptSubmit` / `SessionStart` / `UserPromptExpansion` 事件读 stdout。其他事件的 stdout 在某些执行路径上会触发 SIGPIPE / EPIPE，被 UI 渲染成 "hook error"。现在 Pre/PostToolUse hook 完全静默，提醒信息只写到 `/tmp/tdd-hook-*.log` 诊断文件
+  - 根因 3：`sed -i''`（无空格）在 macOS BSD sed 上报错；改为 `sed -i ''` 形式，并加 GNU sed 的 fallback
+- `pre-write-edit.sh` 的 RED 阻断逻辑保留（`exit 2` + stderr 反馈是合法的通道）
+- 所有 hook 脚本统一：`set +e` + stdin JSON 读取 + 失败路径 `exit 0` 不阻断 Claude
+
+### Added
+
+- `test/hooks-verify.sh` — hook 脚本单元测试 (16 assertions)：覆盖 non-test cmd、RED 阻断、GREEN 放行、strike 计数递增/重置、`last_edit_time` 更新、UserPromptSubmit stdout context 输出、Pre/Post stdout 静默
+  - 源仓库开发时跑：`bash test/hooks-verify.sh`
+  - 已安装项目跑：`bash test/hooks-verify.sh .claude/hooks/tdd`
+- 诊断日志：默认写 `/tmp/tdd-hook-{pre,post}-{bash,write-edit}.log`，通过 `TDD_HOOK_DEBUG=0` 关闭
+
+### Changed
+
+- Hook 脚本约定：Pre/PostToolUse 事件**不得**往 stdout 写入任何字符，所有诊断/提醒改走日志文件
+- SKILL.md / 命令文档不改动
+
 ## [2.4.1] — 2026-04-20
 
 ### Added

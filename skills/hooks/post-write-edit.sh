@@ -1,17 +1,32 @@
 #!/usr/bin/env bash
 # TDD Harness — PostToolUse (Write|Edit) hook
-# Updates last_edit_time timestamp and reminds to sync tasks.md
+# Silent on stdout. All diagnostics go to /tmp/tdd-hook-post-write-edit.log.
+
+set +e
+
+LOG=${TDD_HOOK_LOG_POST_WRITE:-/tmp/tdd-hook-post-write-edit.log}
+log() { [ "${TDD_HOOK_DEBUG:-1}" = "1" ] && printf '%s\n' "$*" >> "$LOG" 2>/dev/null; }
+log "=== $(date '+%F %T') pid=$$ PostToolUse/Write|Edit ==="
+
+INPUT=$(cat 2>/dev/null || true)
+
+CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+[ -z "$CWD" ] && CWD="$PWD"
+cd "$CWD" 2>/dev/null || { log "cannot cd $CWD"; exit 0; }
 
 SPEC=$(cat tdd-specs/.current 2>/dev/null)
 H="tdd-specs/$SPEC/.harness"
+
 if [ -n "$SPEC" ] && [ -f "$H" ]; then
   TS=$(date +%s)
   if grep -q "last_edit_time=" "$H"; then
-    sed -i'' "s/last_edit_time=.*/last_edit_time=$TS/" "$H"
+    sed -i '' "s/last_edit_time=.*/last_edit_time=$TS/" "$H" 2>/dev/null || \
+      sed -i "s/last_edit_time=.*/last_edit_time=$TS/" "$H" 2>/dev/null
   else
     echo "last_edit_time=$TS" >> "$H"
   fi
+  log "updated last_edit_time for $SPEC"
 fi
-if [ -n "$SPEC" ]; then
-  echo "[tdd-harness] Sync tdd-specs/$SPEC/tasks.md"
-fi
+
+log "reached end, exit 0"
+exit 0
