@@ -25,9 +25,11 @@ fi
 
 COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 OUTPUT=$(printf '%s' "$INPUT" | jq -r '.tool_response // empty | if type=="string" then . else tostring end' 2>/dev/null)
+OUTPUT_LEN=${#OUTPUT}
+log "spec=$SPEC cmd=$(printf '%s' "$COMMAND" | head -c 120) output_len=$OUTPUT_LEN"
 
 case "$COMMAND" in
-  *test*|*jest*|*vitest*|*pytest*|*"go test"*|*"cargo test"*|*mocha*) ;;
+  *test*|*jest*|*vitest*|*pytest*|*"go test"*|*"cargo test"*|*mocha*) log "detected test-like command, processing";;
   *) log "non-test cmd, skip"; exit 0 ;;
 esac
 
@@ -36,8 +38,10 @@ TS=$(date +%s)
 if grep -q "last_test_time=" "$H"; then
   sed -i '' "s/last_test_time=.*/last_test_time=$TS/" "$H" 2>/dev/null || \
     sed -i "s/last_test_time=.*/last_test_time=$TS/" "$H" 2>/dev/null
+  log "updated last_test_time=$TS"
 else
   echo "last_test_time=$TS" >> "$H"
+  log "appended last_test_time=$TS"
 fi
 
 # shellcheck disable=SC1090
@@ -53,13 +57,17 @@ if printf '%s' "$OUTPUT" | grep -qiE 'FAIL|FAILED|ERROR|failures'; then
     else
       echo "strikes=$strikes" >> "$H"
     fi
-    [ "$strikes" -ge 3 ] && log "[THREE-STRIKE] same test failed $strikes times"
+    log "strike counter → $strikes"
+    [ "$strikes" -ge 3 ] && log "[THREE-STRIKE] same test failed $strikes times — HALT and ask user"
+  else
+    log "phase=${phase:-?}, not green — strike counter not incremented (expected: test should fail in RED)"
   fi
 else
-  log "[tests] PASSED"
+  log "[tests] PASSED (phase=${phase:-?})"
   if grep -q "strikes=" "$H"; then
     sed -i '' "s/strikes=.*/strikes=0/" "$H" 2>/dev/null || \
       sed -i "s/strikes=.*/strikes=0/" "$H" 2>/dev/null
+    log "strike counter reset to 0"
   fi
 fi
 

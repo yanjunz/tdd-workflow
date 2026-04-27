@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.3] — 2026-04-27
+
+### Changed
+
+- Hook 诊断日志覆盖全部 5 个脚本，每条记录都包含足够的上下文定位问题：
+  - `pre-bash.sh`: 记录 `spec / phase / cmd`（命令头 120 字符）
+  - `post-bash.sh`: 记录 `cmd / output_len / 是否识别为 test-like / sed 操作（updated/appended）/ strike 计数变化 / THREE-STRIKE 提醒`
+  - `pre-write-edit.sh`（新增日志）: 记录 `tool / phase / file_path / 分支决策（RED+test-like/RED+tdd-specs/BLOCK(2)/allow）`
+  - `post-write-edit.sh`: 记录 `tool / file / success / spec / last_edit_time 操作`
+  - `user-prompt-submit.sh`（新增日志）: 记录 `spec / phase / task / strikes / tasks.md 状态`
+- 日志文件 `/tmp/tdd-hook-{pre,post}-{bash,write-edit}.log` 和新增的 `/tmp/tdd-hook-pre-write-edit.log`、`/tmp/tdd-hook-user-prompt-submit.log`
+- 仍可通过 `TDD_HOOK_DEBUG=0` 关闭日志（`test/hooks-verify.sh` 默认关闭）
+
+### Fixed
+
+- `test/hooks-verify.sh`: 测试用的 src/test 文件路径不再依赖 `$PWD`，改用固定的 `/var/tmp/tdd_verify_*`，避免 CWD 里含 "test" 子串时 pre-write-edit RED 分支被误判为测试文件
+
 ## [2.4.2] — 2026-04-27
 
 ### Fixed

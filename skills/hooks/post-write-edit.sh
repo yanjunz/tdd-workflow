@@ -17,15 +17,29 @@ cd "$CWD" 2>/dev/null || { log "cannot cd $CWD"; exit 0; }
 SPEC=$(cat tdd-specs/.current 2>/dev/null)
 H="tdd-specs/$SPEC/.harness"
 
-if [ -n "$SPEC" ] && [ -f "$H" ]; then
-  TS=$(date +%s)
-  if grep -q "last_edit_time=" "$H"; then
-    sed -i '' "s/last_edit_time=.*/last_edit_time=$TS/" "$H" 2>/dev/null || \
-      sed -i "s/last_edit_time=.*/last_edit_time=$TS/" "$H" 2>/dev/null
-  else
-    echo "last_edit_time=$TS" >> "$H"
-  fi
-  log "updated last_edit_time for $SPEC"
+TOOL=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
+FILE=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+SUCCESS=$(printf '%s' "$INPUT" | jq -r '.tool_response.success // empty' 2>/dev/null)
+log "tool=$TOOL file=$FILE success=${SUCCESS:-?} spec=${SPEC:-none}"
+
+if [ -z "$SPEC" ]; then
+  log "no active spec, skip"
+  exit 0
+fi
+
+if [ ! -f "$H" ]; then
+  log "no .harness at $H, skip"
+  exit 0
+fi
+
+TS=$(date +%s)
+if grep -q "last_edit_time=" "$H"; then
+  sed -i '' "s/last_edit_time=.*/last_edit_time=$TS/" "$H" 2>/dev/null || \
+    sed -i "s/last_edit_time=.*/last_edit_time=$TS/" "$H" 2>/dev/null
+  log "updated last_edit_time=$TS for $SPEC"
+else
+  echo "last_edit_time=$TS" >> "$H"
+  log "appended last_edit_time=$TS for $SPEC"
 fi
 
 log "reached end, exit 0"
