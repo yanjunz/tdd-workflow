@@ -101,6 +101,25 @@ Output after collection:
 4. **Step 3: Generate `tdd-specs/<name>/requirements.md`**
 5. **Step 4: Generate `tdd-specs/<name>/design.md`** (incorporating actual project tech stack)
 6. **Step 5: Generate `tdd-specs/<name>/tasks.md`** (using actual project test commands and paths)
+
+   **CRITICAL — Vertical Slice Rule (mandatory):**
+
+   Phase 2 tasks MUST be organized by UC (vertical slice), and each UC MUST include tasks for ALL technical layers it touches:
+
+   | Layer | Include when... | Example tasks |
+   |-------|----------------|---------------|
+   | Database migration | UC introduces new table/field | `CREATE TABLE`, execute migration to local DB |
+   | Backend service | UC has business logic | service unit test + implementation |
+   | Backend controller | UC has API endpoint | controller/route test |
+   | Frontend page | UC actor is end-user (browser/miniprogram) | page JS/HTML/CSS implementation |
+   | Client app | UC involves client-side processing | Python/native test + implementation |
+
+   **FORBIDDEN:** Separating frontend into a standalone "Phase 4". All layers of a UC belong together in Phase 2.
+
+   **Exception:** Pure infrastructure setup (Phase 1: creating directories, Entity skeletons, module registration) is allowed as a separate phase since it's shared across all UCs.
+
+   **Database migration execution rule:** Phase 1 must include actually running the migration on local dev DB (not just writing the SQL file). After migration, run `schema:dump` if the project has that script.
+
 7. **Step 6: Test coverage check (mandatory, cannot skip)**
 
    After generating tasks.md, immediately verify all 3 test layers have tasks. If any layer has 0, **proactively add** before continuing:
@@ -117,7 +136,7 @@ Output format:
 ```
 OK requirements.md — N requirements, N acceptance criteria
 OK design.md       — N modules, N interfaces
-OK tasks.md        — Phase 2: N items / Phase 3: N items / Phase 4: N items
+OK tasks.md        — Phase 1: N items / Phase 2: N items (by UC, all layers) / Phase 3: N E2E items
 Issues reviewed: <related IDs or "none">
 
 Ready! Run /tdd:loop to start TDD implementation.
@@ -195,32 +214,55 @@ Please choose:
 
 ## `/tdd:loop`
 
-**Auto-cycle until tasks.md Phase 2 is fully complete.**
+**Auto-cycle until all implementation tasks (Phase 1 + Phase 2) are fully complete.**
 
 ```
-WHILE tasks.md has [ ] or [~] Phase 2 tasks:
-  /tdd:red      -> Write failing test
-  /tdd:green    -> Implement to pass (with issues lookup)
-  /tdd:refactor -> Refactor
+WHILE tasks.md has [ ] or [~] in Phase 1 or Phase 2:
+  IF current task is Phase 1 (infrastructure):
+    Execute directly (no RED/GREEN cycle needed for migrations, scaffolding)
+    Mark [x]
+  ELSE (Phase 2 implementation task):
+    IF task is a "unit test" task:
+      /tdd:red      -> Write failing test
+    IF task is an "implement" task:
+      /tdd:green    -> Implement to pass (with issues lookup)
+    IF task is a frontend page task:
+      Write page files directly (js/wxml/wxss/json for miniprogram, tsx for React)
+      Mark [x]
+    /tdd:refactor -> Refactor (if applicable)
 
   IF same test fails 3 times:
     STOP -> Three-Strike Protocol -> Await decision
 
-IF Phase 2 all green:
+IF all Phase 1 + Phase 2 tasks green:
   Run full test suite (project's actual command)
-  Output: Phase 2 completion report (N tests, Xs elapsed)
+  Output: completion report (N tests, Xs elapsed)
   Prompt: Run /tdd:e2e for E2E acceptance
 ```
+
+**Key behavior:** The loop processes ALL layers within each UC (backend test → backend impl → frontend page) before moving to the next UC. This ensures each UC is fully deliverable when its tasks complete.
 
 **Task completeness scan (runs once at loop start, cannot skip):**
 
 | Scenario Type | Check | Prompt |
 |--------------|-------|--------|
+| **DB migration executed** | **Phase 1 has migration task AND local DB has the new tables?** | Migration SQL exists but was never executed. Run it now and verify with `SHOW TABLES`. |
+| **Real DB integration test** | **At least 1 test in tasks.md connects to real DB (not all mocked)?** | All tests use mock repositories. Add at least 1 integration test that writes to real DB and reads back to verify schema correctness. |
 | Error response parsing | Tests for "response structure doesn't match expected"? | Missing error response parsing test, suggest adding |
 | Crash/restart recovery | Tests for "state recovery after process restart"? | Missing crash recovery test, suggest adding |
 | External URL/Host changes | Tests for "external resource URL host mismatch"? | Missing URL host rewrite test, suggest adding |
 | Network timeout | Tests for "return False/empty instead of throwing on timeout"? | Missing timeout handling test, suggest adding |
 | **Integration tests (HTTP chain)** | **tasks.md has "integration test:" tasks covering key endpoint HTTP request -> response -> DB write chain?** | Missing integration test tasks, suggest adding: key endpoint e2e chain (with DB state verification), concurrency safety, permission boundaries |
+
+**DB Migration Verification Protocol (mandatory when Phase 1 has migration tasks):**
+
+When processing a Phase 1 migration task, the loop MUST:
+1. Execute the SQL file against local dev DB
+2. Verify tables/columns exist: `SHOW TABLES LIKE '<pattern>'` or equivalent
+3. Run `schema:dump` if project has it
+4. Only mark task `[x]` after verification passes
+
+If DB is not running or migration fails → STOP and ask user to fix DB before continuing. Do NOT proceed with mock-only tests and claim "verification passed".
 
 ---
 
