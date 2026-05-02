@@ -217,28 +217,45 @@ Please choose:
 **Auto-cycle until all implementation tasks (Phase 1 + Phase 2) are fully complete.**
 
 ```
-WHILE tasks.md has [ ] or [~] in Phase 1 or Phase 2:
+WHILE tasks.md has ANY [ ] or [~] task (regardless of Phase):
   IF current task is Phase 1 (infrastructure):
     Execute directly (no RED/GREEN cycle needed for migrations, scaffolding)
-    Mark [x]
-  ELSE (Phase 2 implementation task):
+    VERIFY then mark [x]
+  ELSE (implementation task — any Phase):
     IF task is a "unit test" task:
       /tdd:red      -> Write failing test
     IF task is an "implement" task:
       /tdd:green    -> Implement to pass (with issues lookup)
     IF task is a frontend page task:
       Write page files directly (js/wxml/wxss/json for miniprogram, tsx for React)
-      Mark [x]
+      VERIFY then mark [x]
     /tdd:refactor -> Refactor (if applicable)
 
   IF same test fails 3 times:
     STOP -> Three-Strike Protocol -> Await decision
 
-IF all Phase 1 + Phase 2 tasks green:
+IF ALL tasks across ALL Phases are [x]:
   Run full test suite (project's actual command)
   Output: completion report (N tests, Xs elapsed)
   Prompt: Run /tdd:e2e for E2E acceptance
 ```
+
+**Marking [x] Verification Protocol (MANDATORY — cannot bypass):**
+
+Before marking ANY task `[x]`, you MUST verify with evidence:
+
+| Task type | Required evidence before [x] |
+|-----------|------------------------------|
+| Unit test | Test file exists + `jest`/`pytest` run shows it passes |
+| Implementation | Source file exists + related tests pass |
+| Frontend page | All page files exist (js/wxml/wxss/json or tsx) + registered in app config |
+| Database migration | `SHOW TABLES` confirms new tables exist |
+| Any task | **FORBIDDEN: marking [x] with "待后续", "TODO", "skip" in the same line. Use [!] for blocked tasks.** |
+
+If you cannot complete a task, you MUST either:
+- Mark `[!]` with a documented blocker reason
+- Keep as `[ ]` and ask user for guidance
+- NEVER mark `[x]` for unfinished work
 
 **Key behavior:** The loop processes ALL layers within each UC (backend test → backend impl → frontend page) before moving to the next UC. This ensures each UC is fully deliverable when its tasks complete.
 
