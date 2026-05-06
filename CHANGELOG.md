@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.5] — 2026-05-06
+
+### Changed
+
+- **`/tdd:loop` 范围扩大**：从"只跑 Phase 2"改为"遍历 Phase 1 + Phase 2 所有未完成 task"，按 UC 纵切处理（先把 UC-01 的 backend test → backend impl → frontend page 全跑完，再进 UC-02）
+- **Vertical Slice Rule (mandatory)**：`tasks.md` Phase 2 必须按 UC 纵切组织，每个 UC 包含它触及的所有技术层（DB migration / backend service / backend controller / frontend page / client app）；**禁止单独的"Phase 4 前端"**；仅跨 UC 的基础设施（scaffolding）才放 Phase 1
+- **DB Migration Verification Protocol**：Phase 1 的 migration task 必须真跑到本地 dev DB + 用 `SHOW TABLES` 验证新表存在（不是只写 SQL），有 `schema:dump` 的项目顺带跑；migration 失败停下问用户，不再接受"mock 跑过就算"
+- **Marking [x] Verification Protocol (mandatory)**：标 `[x]` 前必须有证据 —— unit test 要跑过、implementation 要有源文件 + 相关测试通过、frontend page 要文件齐 + app config 注册、migration 要 `SHOW TABLES` 确认；**禁止**同行带"待后续 / TODO / skip" + `[x]`，阻塞的任务用 `[!]` + blocker 理由
+
+### Fixed
+
+- **`/tdd:red` / `/tdd:green` / `/tdd:refactor` 不是独立斜杠命令**：历史遗留误导，在 `skills/commands/` 里没有对应文件。SKILL.md 里这些章节改为 "Loop-internal phases" 明确标注；README 里 loop 伪代码改为 `RED phase` / `GREEN phase` / `REFACTOR phase` 阶段名；新增一行显式说明它们由 `/tdd:loop` 内部驱动不可手工触发。
+- `skills/commands/continue.md` 里的 "Start from `/tdd:red`" 改为 "Resume via `/tdd:loop`（it will re-enter the RED phase）"
+
+### Docs
+
+- README "`/tdd:ff`" 章节重写：明确 usecases.md 是主产出（之前遗漏未提），其他三份从 UC 派生；列出 Vertical Slice Rule 和 DB migration 执行约束
+- README "`/tdd:loop`" 章节重写：循环伪代码反映 Phase 1 + 2 的新行为；新增"标 [x] 必须有证据"协议表；任务完整性扫描加上 migration 执行、真实 DB 集成测试两项
+- README "为什么 loop 和 e2e 分开"对比表：触发频率从"Phase 2 完成后一次"改为"Phase 1 + 2 都完成后一次"
+- README tasks.md 示例：改为按 UC 纵切，前端 task 归到对应 UC 的 Phase 2（不再是独立 Phase 4）
+- 完整工作流示例 `/tdd:loop` 完成时输出 "Phase 1 + 2 complete"
+
 ## [2.4.4] — 2026-04-28
 
 ### Fixed

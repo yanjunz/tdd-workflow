@@ -22,9 +22,7 @@ metadata:
 | `/tdd:ff <name>` | **UseCase-first**: generate usecases.md as primary output, then derive requirements → design → tasks from it |
 | `/tdd:change` | **Mid-course requirement change**: analyze impact (UseCase dimension first), sync all 4 docs |
 | `/tdd:spec` | Generate/update spec documents individually |
-| `/tdd:red` | Write a failing test (RED) |
-| `/tdd:green` | Write minimum code to pass (GREEN) |
-| `/tdd:refactor` | Refactor, keep all green |
+| _RED / GREEN / REFACTOR phases_ | Phase markers used inside `/tdd:loop`; not separate slash commands. See "Loop-internal phases" below for the rules each phase enforces. |
 | `/tdd:loop` | Auto-cycle red -> green -> refactor until Phase 2 complete |
 | `/tdd:e2e` | **Derive E2E tests from usecases.md paths** (each UC path → one E2E) |
 | `/tdd:verify-setup` | Interactive project-level verify config (tdd-specs/.verify/project.md) |
@@ -150,7 +148,13 @@ Ready! Run /tdd:loop to start TDD implementation.
 
 ---
 
-## `/tdd:red`
+# Loop-internal phases
+
+The three phases below are NOT standalone slash commands. They are **phase markers enforced inside `/tdd:loop`** (and inside `/tdd:bug` when fixing a bug). Users do not invoke `/tdd:red` directly — the loop transitions through these phases automatically for each Phase 2 task.
+
+The rules in each phase are the contract between the loop and the Coder/Reviewer it spawns.
+
+## RED phase
 
 **Write a failing test (TDD Red phase).**
 
@@ -167,7 +171,7 @@ Ready! Run /tdd:loop to start TDD implementation.
 
 ---
 
-## `/tdd:green`
+## GREEN phase
 
 **Write minimum code to pass current test (TDD Green phase).**
 
@@ -202,7 +206,7 @@ Please choose:
 
 ---
 
-## `/tdd:refactor`
+## REFACTOR phase
 
 **Refactor (only when all tests are green).**
 
@@ -223,13 +227,13 @@ WHILE tasks.md has ANY [ ] or [~] task (regardless of Phase):
     VERIFY then mark [x]
   ELSE (implementation task — any Phase):
     IF task is a "unit test" task:
-      /tdd:red      -> Write failing test
+      RED phase      -> Write failing test
     IF task is an "implement" task:
-      /tdd:green    -> Implement to pass (with issues lookup)
+      GREEN phase    -> Implement to pass (with issues lookup)
     IF task is a frontend page task:
       Write page files directly (js/wxml/wxss/json for miniprogram, tsx for React)
       VERIFY then mark [x]
-    /tdd:refactor -> Refactor (if applicable)
+    REFACTOR phase  -> Refactor (if applicable)
 
   IF same test fails 3 times:
     STOP -> Three-Strike Protocol -> Await decision
@@ -475,7 +479,7 @@ tdd-specs/
 | Timing | Method |
 |--------|--------|
 | Before `/tdd:ff` or `/tdd:spec` | Browse project issues directory (if exists) |
-| Before each `/tdd:green` | `grep -rl "<error-keywords>" <issues-dir>/` |
+| Before each GREEN phase (inside `/tdd:loop`) | `grep -rl "<error-keywords>" <issues-dir>/` |
 | After Three-Strike Protocol triggers | Full-text search + module filter |
 
 ## Not Applicable For

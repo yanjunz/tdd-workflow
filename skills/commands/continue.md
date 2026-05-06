@@ -28,8 +28,8 @@ Resume in-progress feature.
    ```
 
 3. **Find first incomplete task and set harness phase**
-   - `[ ]` -> Set phase to red: `SPEC=$(cat tdd-specs/.current); sed -i '' 's/phase=.*/phase=red/' "tdd-specs/$SPEC/.harness"` -> Start from `/tdd:red`
-   - `[~]` -> Set phase to green: `SPEC=$(cat tdd-specs/.current); sed -i '' 's/phase=.*/phase=green/' "tdd-specs/$SPEC/.harness"` -> Start from `/tdd:green` (test written, implementation incomplete)
+   - `[ ]` -> Set phase to red: `SPEC=$(cat tdd-specs/.current); sed -i '' 's/phase=.*/phase=red/' "tdd-specs/$SPEC/.harness"` -> Resume via `/tdd:loop` (it will re-enter the RED phase)
+   - `[~]` -> Set phase to green: `SPEC=$(cat tdd-specs/.current); sed -i '' 's/phase=.*/phase=green/' "tdd-specs/$SPEC/.harness"` -> Resume via `/tdd:loop` (it will re-enter the GREEN phase — test written, implementation incomplete)
    - `[!]` -> Start from blocked decision (Three-Strike Protocol pending)
 
 4. **Output recovery summary**
