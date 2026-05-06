@@ -7,8 +7,8 @@ description: >
 user-invocable: true
 allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent"
 metadata:
-  version: "2.2.0"
-  compatible: "claude-code, codebuddy, cursor"
+  version: "2.4.6"
+  compatible: "claude-code, cursor, cline, windsurf, codebuddy, github-copilot"
   hooks: "Installed to .claude/hooks/tdd/ via tdd-workflow init. See .claude/settings.json for registration."
 ---
 

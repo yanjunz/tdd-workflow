@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.6] — 2026-05-06
+
+### Fixed
+
+- **`skills/SKILL.md` 的 `metadata.version` 停在 2.2.0** 已经三个大版本没同步（2.3.0 / 2.4.0 / 2.4.1-2.4.5 发包时都忘了 bump）。本次一并补齐到 2.4.6
+- **`metadata.compatible` 字段过时**：只列 `claude-code, codebuddy, cursor`，实际 2.4.x 已全面支持 cline / windsurf / github-copilot，改为完整列表
+
+### Added
+
+- **`test/version-sync.sh`**：校验 `skills/SKILL.md` 的 `metadata.version` 与 `package.json` 的 `version` 一致
+- **`npm test` 脚本**：串行跑 `hooks-verify.sh` + `version-sync.sh`
+- **`prepublishOnly` 钩子**：`npm publish` 前自动 build + test，版本不一致或 hooks 测试失败会直接中断发布，避免再出现 SKILL.md 版本脱节的问题
+
 ## [2.4.5] — 2026-05-06
 
 ### Changed

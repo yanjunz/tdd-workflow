@@ -1,6 +1,6 @@
 {
   "name": "tdd-workflow",
-  "version": "2.4.5",
+  "version": "2.4.6",
   "description": "TDD Workflow CLI — install TDD skills for AI coding tools",
   "type": "module",
   "bin": {
@@ -16,7 +16,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "test": "bash test/hooks-verify.sh && bash test/version-sync.sh",
+    "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [
     "tdd",
