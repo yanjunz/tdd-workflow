@@ -7,7 +7,7 @@ description: >
 user-invocable: true
 allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent"
 metadata:
-  version: "2.4.6"
+  version: "2.4.7"
   compatible: "claude-code, cursor, cline, windsurf, codebuddy, github-copilot"
   hooks: "Installed to .claude/hooks/tdd/ via tdd-workflow init. See .claude/settings.json for registration."
 ---
@@ -489,3 +489,68 @@ tdd-specs/
 - Simple style adjustments
 
 Use direct `git commit` for these instead.
+
+---
+
+## 交付后继续开发规范（Post-Delivery Development）
+
+> `/tdd:done` 后 harness 进入 `deliver` 状态。此后任何 `src/` 改动必须遵守以下规则，否则测试债务会迅速积累。
+
+### 场景 A：联调发现 bug
+
+**禁止**直接改代码，必须走 `/tdd:bug`：
+
+```
+发现 bug
+  → /tdd:bug（写复现测试 RED → 改代码 GREEN → 记录 Issue）
+  → 全量回归通过后提交
+```
+
+即使 bug 看起来很小（一行代码），也必须先有复现测试。直接改代码无法确认修复范围，无法防止回归。
+
+### 场景 B：Spec 交付后追加功能
+
+支付对接、状态流转等交付后才补充的逻辑：
+
+```bash
+# 1. 在 tasks.md 末尾追加任务（标注 Post-delivery: <说明>）
+# 2. 把 harness 改回 green
+sed -i '' 's/phase=deliver/phase=green/' tdd-specs/<spec>/.harness
+# 3. 走正常 red→green 循环
+# 4. 全量测试通过后重跑 /tdd:done
+```
+
+不允许在 `deliver` 阶段直接修改实现代码而不追加测试。
+
+### 场景 C：纯样式 / UX / 配置调整
+
+可以直接改，但：
+- commit message 注明 `[style]` / `[ux]` / `[config]`
+- 改后全量跑测试确认无回归
+
+### /tdd:done 检查 8：交付后改动核查
+
+在检查 7（环境变量）之后执行：
+
+```bash
+# 查看本 spec 周期内修改的 src 文件
+git log --oneline --name-only -- 'backend/src/**' 'miniprogram/pages/**' \
+  | grep -v "^[a-f0-9]" | sort -u | head -30
+```
+
+对照 tasks.md 确认：
+- 每个新增 service 方法 → 有单元测试覆盖
+- 每个新增/修改 API 接口 → 有 e2e 测试覆盖
+- 联调期间的 bug 修复 → 有对应 Issue 记录
+
+**发现未覆盖逻辑 → 停止交付，补测试后重跑 `/tdd:done`。**
+
+### 提交前自查清单
+
+```
+□ 每个新增 service 方法有单元测试吗？
+□ 每个新增/修改 API 接口有 e2e 测试吗？
+□ 集成了外部服务（微信/腾讯云/COS）？→ 有 mock 测试吗？
+□ 全量 jest 跑过了吗？（不是只跑单模块）
+□ 有 bug 修复吗？→ 有 Issue 记录和复现测试吗？
+```

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.7] — 2026-05-09
+
+### Added
+
+- **`SKILL.md` 新增"交付后继续开发规范" (Post-Delivery Development)** —— `/tdd:done` 后 harness 进入 `deliver` 状态时，明确三类后续改动的处理路径，避免测试债务在交付后悄悄堆积：
+  - **场景 A 联调发现 bug**：禁止直接改代码，必须走 `/tdd:bug`（复现测试 RED → 修代码 GREEN → 记录 Issue），即使 bug 看起来只一行
+  - **场景 B 交付后追加功能**（如支付对接、状态流转）：在 tasks.md 追加 task + 把 harness 改回 `green` + 走正常 red/green 循环 + 重跑 `/tdd:done`
+  - **场景 C 纯样式/UX/配置调整**：可以直接改，但 commit message 用 `[style]` / `[ux]` / `[config]` 标注 + 全量跑测试确认无回归
+- **`/tdd:done` 新增检查 8 "交付后改动核查"**：扫本 spec 周期内修改的 `backend/src/**` 和 `miniprogram/pages/**` 文件，对照 tasks.md 确认每个新增 service / API / bug 修复都有覆盖；发现未覆盖逻辑停止交付
+- **提交前自查清单 (5 项)**：service 单元测试、API e2e 测试、外部服务 mock、全量 jest、bug Issue 记录
+
 ## [2.4.6] — 2026-05-06
 
 ### Fixed

@@ -32,8 +32,8 @@
 ## 快速开始
 
 ```bash
-# 在项目根目录运行
-npx tdd-workflow init
+# 在项目根目录运行（@latest 强制从 registry 拉最新版，不走本地缓存）
+npx tdd-workflow@latest init
 
 # 打开你的 AI 编程助手（如 Claude Code），输入：
 /tdd:new
@@ -54,16 +54,23 @@ npx tdd-workflow init
 无需全局安装，在项目根目录下直接运行：
 
 ```bash
-npx tdd-workflow init
+npx tdd-workflow@latest init
 ```
 
 CLI 会自动扫描项目中的 `.claude/`、`.cursor/` 等目录，弹出交互式多选让你确认要安装到哪些工具。
 
+> **为什么强烈建议加 `@latest`**：`npx tdd-workflow init`（不带 `@latest`）会优先用本机已有的全局/缓存版本，可能命中你几个月前装的旧版而不是 npm registry 上的最新版。加上 `@latest` 强制从 registry 解析，确保拿到最新代码。
+
 ### 方式二：全局安装
 
+不推荐 —— 全局包不会自动升级，时间长了会落后于 registry。如果一定要装：
+
 ```bash
-npm install -g tdd-workflow
+npm install -g tdd-workflow@latest
 tdd-workflow init
+
+# 升级时
+npm install -g tdd-workflow@latest
 ```
 
 ### 方式三：从源码构建
@@ -1247,6 +1254,23 @@ npx tdd-workflow@latest update
 ```
 
 自动检测已安装的工具并更新所有文件。
+
+### `npx tdd-workflow init` 装上的版本不是最新的？
+
+`npx` 默认会优先用本机已经全局安装或缓存里的版本，**不会主动去 registry 拉最新**。如果你以前 `npm i -g tdd-workflow` 装过，全局那个会被无限期复用。
+
+**永久修法**（推荐）：始终带 `@latest`：
+
+```bash
+npx tdd-workflow@latest init
+npx tdd-workflow@latest update
+```
+
+**也可以**：删掉全局安装，未来 `npx` 就不会被它劫持：
+
+```bash
+npm uninstall -g tdd-workflow
+```
 
 ### init 后 hooks 没有生效？
 
