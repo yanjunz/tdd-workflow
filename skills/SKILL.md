@@ -5,9 +5,9 @@ description: >
   Interactive requirements gathering -> UseCase documentation -> Test plan -> TDD implementation (unit -> integration -> E2E) -> Regression verification -> Issue tracking -> Delivery.
   Trigger words: implement, new feature, develop, add, build, I want to, help me build
 user-invocable: true
-allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent"
+allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent, TeamCreate"
 metadata:
-  version: "2.4.7"
+  version: "3.0.0"
   compatible: "claude-code, cursor, cline, windsurf, codebuddy, github-copilot"
   hooks: "Installed to .claude/hooks/tdd/ via tdd-workflow init. See .claude/settings.json for registration."
 ---
@@ -220,6 +220,30 @@ Please choose:
 
 **Auto-cycle until all implementation tasks (Phase 1 + Phase 2) are fully complete.**
 
+### Agent Team Design: Coder + Orchestrator separation
+
+```
+Orchestrator (main Claude session)
+  ├── Assigns tasks to Coder Agent (subagent_type: general-purpose)
+  │     Coder reads: tdd-specs/ + src/ + test/
+  │     Coder writes: implementation + unit tests
+  │
+  ├── Runs tests independently (Orchestrator executes, not Coder)
+  │     Independent judgment: green / red / regressed
+  │
+  └── For large features with parallel-safe UC modules:
+        Spawn multiple Coder Agents simultaneously (one per UC module)
+        Merge when all complete, run full test suite
+```
+
+**When to use parallel Coders:**
+- Feature has 2+ independent UC modules (no shared state during implementation)
+- Each module has distinct files (no write conflicts)
+
+**When NOT to parallelize:**
+- Shared DB schema changes (run Phase 1 migrations sequentially first)
+- Dependent business logic (UC-B depends on UC-A's service)
+
 ```
 WHILE tasks.md has ANY [ ] or [~] task (regardless of Phase):
   IF current task is Phase 1 (infrastructure):
@@ -231,7 +255,7 @@ WHILE tasks.md has ANY [ ] or [~] task (regardless of Phase):
     IF task is an "implement" task:
       GREEN phase    -> Implement to pass (with issues lookup)
     IF task is a frontend page task:
-      Write page files directly (js/wxml/wxss/json for miniprogram, tsx for React)
+      Write page files directly (js/html/css or framework equivalent)
       VERIFY then mark [x]
     REFACTOR phase  -> Refactor (if applicable)
 
@@ -250,10 +274,10 @@ Before marking ANY task `[x]`, you MUST verify with evidence:
 
 | Task type | Required evidence before [x] |
 |-----------|------------------------------|
-| Unit test | Test file exists + `jest`/`pytest` run shows it passes |
+| Unit test | Test file exists + test runner shows it passes |
 | Implementation | Source file exists + related tests pass |
-| Frontend page | All page files exist (js/wxml/wxss/json or tsx) + registered in app config |
-| Database migration | `SHOW TABLES` confirms new tables exist |
+| Frontend page | All page files exist (framework-appropriate: tsx/vue/svelte/html+js+css) + registered in router/config |
+| Database migration | Schema inspection confirms new tables/columns exist |
 | Any task | **FORBIDDEN: marking [x] with "待后续", "TODO", "skip" in the same line. Use [!] for blocked tasks.** |
 
 If you cannot complete a task, you MUST either:
@@ -289,20 +313,79 @@ If DB is not running or migration fails → STOP and ask user to fix DB before c
 
 ## `/tdd:e2e`
 
-**Phase 3: E2E acceptance tests.**
+**Phase 3: E2E acceptance tests — run by an independent Tester Agent.**
 
-Pre-check (based on project's actual service address):
-```bash
-curl -s http://localhost:<PORT>/health 2>/dev/null || echo "WARNING: Service not running, please start dev server first"
+### Agent Team Design: Tester is Blind to Implementation
+
+The Tester Agent that writes and runs E2E tests **must not** read implementation code. This ensures tests are driven by user intent (usecases.md), not by knowledge of how the code works.
+
+```
+Tester Agent
+  ✅ Can read: tdd-specs/<feature>/usecases.md
+  ✅ Can read: tdd-specs/<feature>/requirements.md
+  ✅ Can read: API route definitions / interface signatures
+  ✅ Can read: DB schema (table structure only)
+  ❌ Cannot read: any src/ / lib/ / app/ implementation code
+  ❌ Cannot read: unit test files written by Coder
 ```
 
-1. Detect project's E2E framework (Playwright, Cypress, Selenium, etc.)
-2. Add acceptance test cases in project's E2E test directory (following existing test structure)
-3. Run E2E tests (using project's actual command)
-4. Fix failures (Three-Strike Protocol applies)
-5. Update tasks.md Phase 3 status
+**When to spawn an isolated Tester Agent:**
+- Feature has 3+ UCs, or E2E spans multiple services
+- Use `isolation: "worktree"` to physically prevent access to implementation
 
-**E2E Hard Rules:**
+**When single-agent E2E is acceptable:**
+- Simple features with 1-2 UCs
+- Developer self-disciplines to write tests from UC perspective only (not from implementation knowledge)
+
+### E2E Mode: Real Stack First
+
+Prefer running E2E against a real running service stack, not mocked responses.
+
+```
+REAL mode (default):
+  1. Verify service stack is running (health check from project.md)
+  2. Seed test data
+  3. Run E2E — no API response mocking (no page.route() / fetch intercepts)
+  4. Assert: UI state + API response + DB state (triple verification)
+  5. Teardown test data
+
+MOCK mode (opt-in, requires justification):
+  - Acceptable for: 3rd-party payment APIs, SMS, email sends
+  - Unacceptable for: your own backend endpoints
+  - Each mock must have inline comment: // mocked because: <reason>
+  - If accumulated mocks > 3, create a test environment stub instead
+```
+
+Pre-check (detect actual service port from project.md health check):
+```bash
+# Read health check from tdd-specs/.verify/project.md and run it
+curl -s <health_check_url> 2>/dev/null || echo "WARNING: Service not running, please start dev server first"
+```
+
+### Deriving E2E Test Cases from UseCases
+
+```
+For each UC in usecases.md:
+  Success path    → 1 E2E test (full flow, verify postcondition)
+  Each alt path   → 1 E2E test (verify error/boundary handling)
+
+Each test must:
+  - Trigger via user action (not direct API call bypassing UI)
+  - Have explicit assertions (not just navigate to page)
+  - Record function name in tasks.md (anti fake-checkoff rule)
+```
+
+**tasks.md E2E task format:**
+```markdown
+# CORRECT (function name recorded before checking off)
+- [x] 3.1 UC-01 success path — user completes <action>, system shows <result>
+      → test_function_name (tests/e2e/flow.spec.ts:L142)
+
+# WRONG (fake checkoff, cannot trace)
+- [x] 3.1 UC-01 E2E
+```
+
+**Hard Rules (unchanged):**
 
 ### Rule 1: Must cover real network layer
 ```javascript
@@ -315,13 +398,6 @@ await expect(page.locator('[data-testid="success-msg"]')).toBeVisible()
 ```
 
 ### Rule 2: Skipped tests must have documented reasons
-```javascript
-// WRONG: Silent skip, no tracking
-test.skip('env not supported')
-
-// CORRECT: Document skip reason for follow-up
-test.skip('Step N: [specific reason], restore after resolution')
-```
 **If accumulated skips exceed 3, must establish mock/stub environment to resolve — no more skip stacking.**
 
 ### Rule 3: Assert results after every key action
@@ -494,7 +570,7 @@ Use direct `git commit` for these instead.
 
 ## 交付后继续开发规范（Post-Delivery Development）
 
-> `/tdd:done` 后 harness 进入 `deliver` 状态。此后任何 `src/` 改动必须遵守以下规则，否则测试债务会迅速积累。
+> `/tdd:done` 后 harness 进入 `deliver` 状态。此后任何源码改动必须遵守以下规则，否则测试债务会迅速积累。
 
 ### 场景 A：联调发现 bug
 
@@ -510,14 +586,11 @@ Use direct `git commit` for these instead.
 
 ### 场景 B：Spec 交付后追加功能
 
-支付对接、状态流转等交付后才补充的逻辑：
-
 ```bash
 # 1. 在 tasks.md 末尾追加任务（标注 Post-delivery: <说明>）
 # 2. 把 harness 改回 green
-sed -i '' 's/phase=deliver/phase=green/' tdd-specs/<spec>/.harness
-# 3. 走正常 red→green 循环
-# 4. 全量测试通过后重跑 /tdd:done
+sed -i 's/phase=deliver/phase=green/' tdd-specs/<spec>/.harness
+# 3. 走正常 loop → done 流程
 ```
 
 不允许在 `deliver` 阶段直接修改实现代码而不追加测试。
@@ -528,18 +601,16 @@ sed -i '' 's/phase=deliver/phase=green/' tdd-specs/<spec>/.harness
 - commit message 注明 `[style]` / `[ux]` / `[config]`
 - 改后全量跑测试确认无回归
 
-### /tdd:done 检查 8：交付后改动核查
-
-在检查 7（环境变量）之后执行：
+### /tdd:done 检查：交付后改动核查
 
 ```bash
-# 查看本 spec 周期内修改的 src 文件
-git log --oneline --name-only -- 'backend/src/**' 'miniprogram/pages/**' \
+# 查看本 spec 周期内修改的源文件（适配项目实际的 src 目录结构）
+git log --oneline --name-only -- 'src/**' 'app/**' 'lib/**' \
   | grep -v "^[a-f0-9]" | sort -u | head -30
 ```
 
 对照 tasks.md 确认：
-- 每个新增 service 方法 → 有单元测试覆盖
+- 每个新增业务方法 → 有单元测试覆盖
 - 每个新增/修改 API 接口 → 有 e2e 测试覆盖
 - 联调期间的 bug 修复 → 有对应 Issue 记录
 
@@ -548,9 +619,9 @@ git log --oneline --name-only -- 'backend/src/**' 'miniprogram/pages/**' \
 ### 提交前自查清单
 
 ```
-□ 每个新增 service 方法有单元测试吗？
+□ 每个新增业务方法有单元测试吗？
 □ 每个新增/修改 API 接口有 e2e 测试吗？
-□ 集成了外部服务（微信/腾讯云/COS）？→ 有 mock 测试吗？
-□ 全量 jest 跑过了吗？（不是只跑单模块）
+□ 集成了外部服务？→ 有 mock/stub 测试吗？
+□ 全量测试跑过了吗？（不是只跑单模块）
 □ 有 bug 修复吗？→ 有 Issue 记录和复现测试吗？
 ```
