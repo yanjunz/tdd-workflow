@@ -95,6 +95,19 @@ paths:
     # 如果用外部工具（Jira/GitHub Issues），取消注释并设置 enabled=false：
     # external_tool: "Jira"
     # external_url: "https://company.atlassian.net/jira/projects/PROJ"
+
+  # 实现代码目录（两处用途）：
+  #   1. Tester Agent 的 FORBIDDEN 列表——写 E2E 测试时禁止读取这些目录
+  #   2. /tdd:done 交付后改动核查——git log 只扫描这些目录下的改动
+  # 对于 monorepo，列出所有包含实现代码的子目录。
+  # 不配置时 /tdd:done 会 fallback 到自动检测（src/ app/ lib/）。
+  src_dirs:
+    - "src"                                     # 单仓库典型路径
+    # monorepo 示例（取消注释并按实际修改）：
+    # - "backend/src"
+    # - "frontend/src"
+    # - "mobile/lib"
+    # - "packages/core/src"
 ---
 
 # 项目验证手册

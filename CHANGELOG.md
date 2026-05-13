@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.0] — 2026-05-13
+
+### Changed
+
+- **`/tdd:e2e` Tester Agent 强制 spawn** — 有 2+ UC 的功能禁止主 Agent 直接写 E2E，必须先 `Agent()` spawn 独立 Tester；Tester 的 FORBIDDEN 列表从 `paths.src_dirs` 读取（不再硬假设 `src/`）；添加真实案例说明为何必须强制（绕过首页导航导致缺失 `goToCopy` 入口等 bug 被隐藏 2 轮）
+- **`paths.src_dirs` 配置** — `tdd-specs/.verify/project.md` 新增 `src_dirs` 字段，支持 monorepo 多路径；两处用途：Tester Agent 的 FORBIDDEN 列表 + `/tdd:done` 交付后改动核查的 `git log` 扫描范围；未配置时 fallback 到自动检测（`src/ app/ lib/`）
+- **澄清 `isolation:worktree` 误区** — 明确 worktree 只防写冲突，不防读取实现代码；Tester 盲区靠 prompt 约束，不靠 worktree 隔离
+- **monorepo 感知目录检测** — 环境探测 snippet 改为 `find . -maxdepth 3 -name "package.json"` 多包扫描，替代原来的单层 `ls -d src/ app/ ...`
+- **服务端口自动发现** — E2E REAL 模式优先用 `_devtools_port.py` 等自动发现脚本，失败 2 次后才询问用户；不再在 pre-check 里硬读 project.md health_check URL
+
 ## [3.0.0] — 2026-05-13
 
 ### Changed

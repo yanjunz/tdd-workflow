@@ -7,7 +7,7 @@ description: >
 user-invocable: true
 allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent, TeamCreate"
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
   compatible: "claude-code, cursor, cline, windsurf, codebuddy, github-copilot"
   hooks: "Installed to .claude/hooks/tdd/ via tdd-workflow init. See .claude/settings.json for registration."
 ---
@@ -45,13 +45,16 @@ metadata:
 ls package.json pyproject.toml Cargo.toml go.mod pom.xml build.gradle 2>/dev/null | head -5
 grep -E '"test"|"jest"|"vitest"|"pytest"|"mocha"' package.json 2>/dev/null || true
 
-# Detect source and test directories
-ls -d src/ app/ lib/ tests/ test/ spec/ __tests__/ 2>/dev/null || true
+# Detect source and test directories (monorepo-aware: check subdirs too)
+find . -maxdepth 3 -name "package.json" -not -path "*/node_modules/*" \
+  -exec sh -c 'echo "$(dirname {})/src $(dirname {})/lib $(dirname {})/app"' \; 2>/dev/null | \
+  xargs -I{} sh -c 'ls -d {} 2>/dev/null' | sort -u | head -10
 ```
 
 Adapt all subsequent commands based on detection results:
 - **Test commands**: `npm test` / `npx jest` / `npx vitest` / `pytest` / `go test ./...` / `mvn test` / `cargo test` etc.
 - **Test directories**: `test/` / `tests/` / `__tests__/` / `spec/` etc.
+- **Source directories**: **read from `tdd-specs/.verify/project.md` → `paths.src_dirs`** (may be multiple paths for monorepos). Fall back to detection results if not configured.
 - **Source directories**: `src/` / `app/` / `lib/` etc.
 
 ---
@@ -109,7 +112,7 @@ Output after collection:
    | Database migration | UC introduces new table/field | `CREATE TABLE`, execute migration to local DB |
    | Backend service | UC has business logic | service unit test + implementation |
    | Backend controller | UC has API endpoint | controller/route test |
-   | Frontend page | UC actor is end-user (browser/miniprogram) | page JS/HTML/CSS implementation |
+   | Frontend page | UC actor is end-user (web/mobile/native app) | page JS/HTML/CSS implementation |
    | Client app | UC involves client-side processing | Python/native test + implementation |
 
    **FORBIDDEN:** Separating frontend into a standalone "Phase 4". All layers of a UC belong together in Phase 2.
@@ -313,11 +316,80 @@ If DB is not running or migration fails → STOP and ask user to fix DB before c
 
 ## `/tdd:e2e`
 
-**Phase 3: E2E acceptance tests — run by an independent Tester Agent.**
+**Phase 3: E2E acceptance tests.**
 
-### Agent Team Design: Tester is Blind to Implementation
+### MANDATORY FIRST STEP — Spawn Tester Agent (cannot skip)
 
-The Tester Agent that writes and runs E2E tests **must not** read implementation code. This ensures tests are driven by user intent (usecases.md), not by knowledge of how the code works.
+**Before writing a single line of test code**, you MUST call the `Agent` tool to spawn a Tester Agent. Writing E2E tests directly as the main agent is FORBIDDEN when the feature has 2+ UCs.
+
+```
+REQUIRED:
+  Agent(
+    subagent_type: "general-purpose",
+    prompt: """
+      You are an independent Tester. Your ONLY job is to write and run E2E tests
+      for the feature described in tdd-specs/<feature>/usecases.md.
+
+      ALLOWED to read:
+        - tdd-specs/<feature>/usecases.md          (source of truth for test scenarios)
+        - tdd-specs/<feature>/requirements.md      (acceptance criteria)
+        - API route files (route definitions only, not service implementations)
+        - DB schema files (table structure only)
+        - Existing E2E test files (for project structure/helper patterns)
+        - tdd-specs/.verify/project.md             (test commands, health check URL)
+
+      FORBIDDEN to read (paths listed in tdd-specs/.verify/project.md → paths.src_dirs):
+        - Any implementation code under src_dirs
+        - Any unit test files created during Phase 2
+
+      IF you feel the need to read implementation code to understand behavior,
+      STOP — that means the spec is incomplete. Report back what is unclear
+      instead of reading the implementation.
+
+      STEPS:
+        1. Read usecases.md — derive test scenarios (1 per UC path)
+        2. Start services if needed (health check from project.md)
+        3. Write E2E tests starting from real user entry points:
+           - Navigate from home/index page, not direct URL injection
+           - No page.evaluate() / setData() state injection bypassing UI
+           - No mocking your own backend endpoints
+        4. Run ALL tests. Fix failures (Three-Strike Protocol applies).
+        5. Report: N passed / N failed / N skipped (with skip reasons)
+    """
+  )
+```
+
+**Exception — single-agent E2E is allowed only when:**
+- Feature has exactly 1 UC with no alternative paths
+- In that case, main agent writes tests but MUST commit in writing:
+  > "I am writing this test from UC-only perspective. I have not read
+  >  any src_dirs implementation files since starting /tdd:e2e."
+
+**Enforcement checklist (Orchestrator runs AFTER Tester Agent reports back):**
+
+| Check | Pass condition |
+|-------|---------------|
+| Agent tool was called | Tool call log shows Agent invocation |
+| Tests start from real entry points | No `relaunch_to('/pages/specific')` bypassing home nav |
+| No bulk skips | Skipped count ≤ 3, each skip has documented reason |
+| No src_dirs reads in Tester prompt | Tester did not read implementation files |
+
+If any check fails → mark Phase 3 tasks `[!]` blocked and report to user before continuing.
+
+### Why This Matters
+
+From document-copy (2026-05-13) experience:
+- Orchestrator wrote tests itself → used `relaunch_to()` bypassing home page entry
+- Result: missing `goToCopy` nav entry was invisible for 2 full rounds
+- Result: `globalData.baseUrl` undefined (all API calls broken) was invisible
+- Result: JWT guard on public endpoint was invisible
+- All bugs were only found when minium actually ran against real DevTools
+
+The Tester Agent boundary exists precisely to catch these integration gaps.
+
+---
+
+### Tester Agent Information Boundary
 
 ```
 Tester Agent
@@ -325,17 +397,19 @@ Tester Agent
   ✅ Can read: tdd-specs/<feature>/requirements.md
   ✅ Can read: API route definitions / interface signatures
   ✅ Can read: DB schema (table structure only)
-  ❌ Cannot read: any src/ / lib/ / app/ implementation code
+  ❌ Cannot read: any implementation code (paths from paths.src_dirs in project.md)
   ❌ Cannot read: unit test files written by Coder
 ```
 
-**When to spawn an isolated Tester Agent:**
-- Feature has 3+ UCs, or E2E spans multiple services
-- Use `isolation: "worktree"` to physically prevent access to implementation
+> **paths.src_dirs** is the authoritative source for "what counts as implementation code".
+> It may contain multiple paths for monorepos (e.g. `api/src`, `frontend/src`, `mobile/lib`).
+> Do NOT assume implementation lives under `src/` — always check project.md first.
 
-**When single-agent E2E is acceptable:**
-- Simple features with 1-2 UCs
-- Developer self-disciplines to write tests from UC perspective only (not from implementation knowledge)
+**⚠️ `isolation: "worktree"` does NOT achieve Tester blindness:**
+
+`isolation: "worktree"` prevents write conflicts between parallel agents.
+It does NOT prevent reading implementation files — the worktree is a full code copy.
+Tester blindness is enforced via **prompt constraints only** (FORBIDDEN list above).
 
 ### E2E Mode: Real Stack First
 
@@ -343,23 +417,19 @@ Prefer running E2E against a real running service stack, not mocked responses.
 
 ```
 REAL mode (default):
-  1. Verify service stack is running (health check from project.md)
-  2. Seed test data
-  3. Run E2E — no API response mocking (no page.route() / fetch intercepts)
-  4. Assert: UI state + API response + DB state (triple verification)
-  5. Teardown test data
+  1. Detect service port (use _devtools_port.py or equivalent auto-discovery first;
+     only ask user if auto-discovery fails after 2 retries)
+  2. Verify service stack is running (health check from project.md)
+  3. Seed test data
+  4. Run E2E — no API response mocking (no page.route() / fetch intercepts)
+  5. Assert: UI state + API response + DB state (triple verification)
+  6. Teardown test data
 
 MOCK mode (opt-in, requires justification):
   - Acceptable for: 3rd-party payment APIs, SMS, email sends
   - Unacceptable for: your own backend endpoints
   - Each mock must have inline comment: // mocked because: <reason>
   - If accumulated mocks > 3, create a test environment stub instead
-```
-
-Pre-check (detect actual service port from project.md health check):
-```bash
-# Read health check from tdd-specs/.verify/project.md and run it
-curl -s <health_check_url> 2>/dev/null || echo "WARNING: Service not running, please start dev server first"
 ```
 
 ### Deriving E2E Test Cases from UseCases
@@ -370,7 +440,8 @@ For each UC in usecases.md:
   Each alt path   → 1 E2E test (verify error/boundary handling)
 
 Each test must:
-  - Trigger via user action (not direct API call bypassing UI)
+  - Start from real user entry point (home page or app launch)
+  - Trigger via actual user action (tap/click/input)
   - Have explicit assertions (not just navigate to page)
   - Record function name in tasks.md (anti fake-checkoff rule)
 ```
@@ -604,8 +675,14 @@ sed -i 's/phase=deliver/phase=green/' tdd-specs/<spec>/.harness
 ### /tdd:done 检查：交付后改动核查
 
 ```bash
-# 查看本 spec 周期内修改的源文件（适配项目实际的 src 目录结构）
-git log --oneline --name-only -- 'src/**' 'app/**' 'lib/**' \
+# 读取 paths.src_dirs 配置（如未配置则用检测结果）
+SRC_DIRS=$(grep -A20 'src_dirs:' tdd-specs/.verify/project.md 2>/dev/null | \
+  grep '^\s*-' | sed "s/.*- //;s/['\"]//g" | tr '\n' ' ')
+# 如果没有配置，自动检测常见目录
+[ -z "$SRC_DIRS" ] && SRC_DIRS="src app lib"
+
+# 查看本 spec 周期内修改的源文件
+git log --oneline --name-only -- $(echo $SRC_DIRS | xargs -n1 printf "'%s/**' ") \
   | grep -v "^[a-f0-9]" | sort -u | head -30
 ```
 
