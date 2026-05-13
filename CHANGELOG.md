@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] — 2026-05-13
+
+### Changed
+
+- **Agent Team 三角分工**
+  - `/tdd:loop`: 引入 Orchestrator + Coder Agent 分工；Orchestrator 负责任务拆解和评审，Coder Agent 专注实现；支持多 UC 并行 Coder（`isolation:worktree` 物理隔离）
+  - `/tdd:e2e`: Tester Agent 信息隔离原则 — 只读 spec，不读实现代码，避免测试被实现细节污染；真实服务栈优先，mock 需注释理由
+
+- **去项目强绑定** — 命令文档不再假设任何具体项目结构：
+  - 移除 `backend/` / `web-admin/` / `miniprogram/` 硬编码路径
+  - 移除 `jest` / `NestJS` / `auto-regression.sh` 硬编码命令
+  - 移除微信 / 腾讯云 / COS 等项目特有外部服务引用
+  - 前端页面文件格式改为 `tsx/vue/svelte/html+js+css`（框架无关）
+  - src 目录扫描改为 `src/**`、`app/**`、`lib/**` 通用模式
+
 ## [2.4.7] — 2026-05-09
 
 ### Added
