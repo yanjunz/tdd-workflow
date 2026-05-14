@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.0] — 2026-05-14
+
+### Added
+
+- **E2E conventions 内置规范** — `skills/templates/verify-project.md` 新增 `e2e_conventions` 完整段落，涵盖 `selector_priority`（data-testid > role > text）、`testid_naming`（snake_case）、`data_state`（data-state attribute 约定）、`spec_requirements`（有 spec 的功能强制写 E2E）、`forbidden_in_e2e`（禁止 page.evaluate / fetch intercepts / direct store mutation）
+
+### Changed
+
+- **Rule 1 扩展：禁止 test-only runtime API** — `window.__test.*` / `globalThis.__e2e.*` / 隐藏 URL 参数等 test-only runtime command bus 与 `page.evaluate` 状态注入等价，在 E2E 中一律 FORBIDDEN；说明了这类"抽象"隐藏的集成 bug（路由入口丢失、click handler 未绑定、表单校验未触发、auth middleware 未命中）
+
 ## [3.1.1] — 2026-05-14
 
 ### Added
