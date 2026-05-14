@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.1] — 2026-05-14
+
+### Added
+
+- **`/tdd:verify-setup` Phase F.5 `src_dirs` 交互配置** — 新增实现代码目录配置章节：自动检测 `src/` `app/` `lib/` 等常见目录，monorepo 进一步检测子包（`packages/*/src`、`apps/*/src`）；用 AskUserQuestion 让用户确认或自定义；写入 `paths.src_dirs`；两处用途：E2E Tester Agent FORBIDDEN 列表 + `/tdd:done` 交付后改动核查的 git log 扫描范围
+
 ## [3.1.0] — 2026-05-13
 
 ### Changed
