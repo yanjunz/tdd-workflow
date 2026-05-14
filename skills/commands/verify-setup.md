@@ -1,6 +1,6 @@
 ---
 name: "TDD: Verify Setup"
-description: 交互式生成项目级验证配置 tdd-specs/.verify/project.md，包含 commands、environments、flows、cleanup 和部署脚本
+description: 交互式生成项目级验证配置 tdd-specs/.verify/project.md，包含 commands、environments、flows、cleanup、paths（含 src_dirs）和部署脚本
 category: TDD Workflow
 tags: [tdd, verify, setup, project-config]
 ---
@@ -29,7 +29,7 @@ fi
 
 如果已存在，用 **AskUserQuestion**：
 - `[A] 查看现有配置，不修改`
-- `[B] 编辑特定章节（commands / environments / flows / cleanup）`
+- `[B] 编辑特定章节（commands / environments / flows / cleanup / paths / src_dirs）`
 - `[C] 完全重做（覆盖现有）`
 - `[D] 退出`
 
@@ -247,6 +247,54 @@ common_flows:
    [C] 自定义模板
 ```
 
+#### F.5 实现代码目录（src_dirs）
+
+配置哪些目录包含实现代码。两处核心用途：
+1. `/tdd:e2e` Tester Agent 的 FORBIDDEN 列表——写 E2E 时禁止读取这些目录下的实现代码
+2. `/tdd:done` 交付后改动核查——git log 只扫描这些目录下的改动
+
+**检测逻辑**：
+
+```bash
+# 检测常见源码目录
+for dir in src app lib packages apps services; do
+  [ -d "$dir" ] && echo "  发现: $dir/"
+done
+# monorepo 进一步检测子包
+if [ -d packages ] || [ -d apps ]; then
+  find packages apps -maxdepth 2 -name "src" -type d 2>/dev/null | while read d; do
+    echo "  发现子包: $d"
+  done
+fi
+```
+
+用 **AskUserQuestion**（选项基于检测结果动态生成）：
+
+```
+🤖 哪些目录包含实现代码？（用于 E2E 测试隔离 + 交付后改动核查）
+   [A] 使用检测结果：<列出检测到的目录>
+   [B] 自定义列表（手动输入，逗号分隔多个路径）
+   [C] 跳过（不配置，/tdd:done 会 fallback 到自动检测 src/ app/ lib/）
+```
+
+如果检测到 monorepo（有 `packages/` 或 `apps/`），追问确认粒度：
+
+```
+🤖 检测到 monorepo 结构。建议精确到子包 src 目录而非顶层。
+   发现的子包目录：
+     - packages/cocode/src
+     - apps/coman_app/nodejs/src
+     - apps/coman_app/web/src
+   [A] 使用以上全部
+   [B] 只选部分（告诉我要保留哪些）
+   [C] 用顶层目录代替（packages/ apps/）
+```
+
+**排除提示**：
+- 测试目录（`tests/` `__tests__/` `testing/`）**不应**放入 src_dirs
+- 文档目录（`docs/`）**不应**放入 src_dirs
+- 配置文件目录（`.github/` `.ci/`）**不应**放入 src_dirs
+
 把以上选择写入 `project.md` 的 `paths:` 节：
 
 ```yaml
@@ -265,12 +313,22 @@ paths:
     index_file: "docs/issues/README.md"
     numbering: "auto"
     filename_pattern: "<NNN>-<module>-<keyword>.md"
+
+  src_dirs:
+    - "src"                               # 单仓库典型路径
+    # monorepo 示例：
+    # - "packages/cocode/src"
+    # - "apps/coman_app/nodejs/src"
+    # - "apps/coman_app/web/src"
+    # 不配置时 fallback 到自动检测（src/ app/ lib/）
 ```
 
 **边界情况**：
 - 如果 `enabled: false` + 没填 `external_tool` → 警告"后续 /tdd:bug 或 /tdd:done 会跳过此类文档同步"
 - 如果用户填的 dir 已存在其他文件 → 提示"此目录已有文件，新 UC/Issue 会并入其中"
 - 目录不存在时**不自动创建**，留到首次写入时再建
+- 如果 `src_dirs` 为空或跳过 → 提示"/tdd:done 和 /tdd:e2e 会 fallback 到自动检测 src/ app/ lib/"
+- 如果 `src_dirs` 包含测试目录（如 `testing/`）→ 警告"测试目录不应放入 src_dirs，会导致 Tester Agent 无法读取测试依赖"
 
 ### 9. 写入文件
 
