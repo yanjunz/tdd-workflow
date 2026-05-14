@@ -7,7 +7,7 @@ description: >
 user-invocable: true
 allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent, TeamCreate"
 metadata:
-  version: "3.1.1"
+  version: "3.2.0"
   compatible: "claude-code, cursor, cline, windsurf, codebuddy, github-copilot"
   hooks: "Installed to .claude/hooks/tdd/ via tdd-workflow init. See .claude/settings.json for registration."
 ---
@@ -467,6 +467,24 @@ page.evaluate(() => { window.__store__.state.status = 'done' })
 await page.click('[data-testid="submit-btn"]')
 await expect(page.locator('[data-testid="success-msg"]')).toBeVisible()
 ```
+
+**Rule 1 extension — no test-only runtime APIs in E2E:**
+
+Any form of test-only runtime command bus (e.g. `window.__test.*`,
+`globalThis.__e2e.*`, hidden URL params that short-circuit views) is
+treated as equivalent to `page.evaluate` state injection and is
+FORBIDDEN in E2E. The "abstraction" makes it look cleaner but the same
+integration bugs become invisible:
+
+- Removed/renamed UI entry points → test still green, real users blocked
+- Unbound click handlers → test still green, button does nothing
+- Broken input debounce / form validation → never triggered, never tested
+- Misconfigured route guards / auth middleware → never hit by test traffic
+
+If you genuinely need to drive store actions without a UI, that workload
+belongs in the **integration test layer** (no browser, no view tree),
+not in E2E. E2E exists specifically so UI-layer regressions can fail
+loudly; do not optimize that property away.
 
 ### Rule 2: Skipped tests must have documented reasons
 **If accumulated skips exceed 3, must establish mock/stub environment to resolve — no more skip stacking.**

@@ -29,9 +29,15 @@ fi
 
 如果已存在，用 **AskUserQuestion**：
 - `[A] 查看现有配置，不修改`
-- `[B] 编辑特定章节（commands / environments / flows / cleanup / paths / src_dirs）`
+- `[B] 编辑特定章节（commands / environments / flows / cleanup / paths / src_dirs / e2e_conventions）`
 - `[C] 完全重做（覆盖现有）`
 - `[D] 退出`
+
+**重要 — 完全重做时的保留策略**：
+即便选 `[C] 完全重做`，以下字段是**项目无关的通用规范**，必须从模板原样带出，不允许丢失：
+- `e2e_conventions` 整段（selector_priority / testid_naming / data_state / spec_requirements / forbidden_in_e2e）
+
+只有 `e2e_conventions.testid_naming.scopes` 这一个子字段允许在 Phase F.6 里被用户配置覆盖。其余字段是 tdd-workflow Skill 的契约组成部分，与 SKILL.md Rule 1 对齐。
 
 ### 2. 检测项目技术栈
 
@@ -330,6 +336,19 @@ paths:
 - 如果 `src_dirs` 为空或跳过 → 提示"/tdd:done 和 /tdd:e2e 会 fallback 到自动检测 src/ app/ lib/"
 - 如果 `src_dirs` 包含测试目录（如 `testing/`）→ 警告"测试目录不应放入 src_dirs，会导致 Tester Agent 无法读取测试依赖"
 
+#### F.6 E2E testid scopes（可选，仅做 hint 用）
+
+`e2e_conventions` 整段从模板原样写入（项目无关的通用规范，不询问），但允许用户登记本项目实际用到的 testid scope，方便 Tester Agent 校验命名一致性。
+
+```
+🤖 你的项目用哪些 testid scope？（可选，方便 Tester Agent 校验命名）
+   scope 通常等于模块名，与 UC 模块命名对齐。例如：skill / chat / settings / order ...
+   [A] 跳过（推荐——后续添加 UC 时按需补）
+   [B] 现在登记（逗号分隔多个 scope）
+```
+
+如果选 B，把输入写入 `e2e_conventions.testid_naming.scopes`。**禁止改动 `e2e_conventions` 的其他子字段**——这些是 Skill 契约的组成部分。
+
 ### 9. 写入文件
 
 ```bash
@@ -375,3 +394,4 @@ fi
 - **已有文件不破坏** — 如果 project.md 已存在，必须先 AskUserQuestion 确认覆盖方式
 - **paths 是配置入口** — 所有涉及 UC/Issue 路径的命令都从 paths 读，不允许硬编码 docs/usecases 或 docs/issues
 - **外部工具模式保守** — `enabled: false` 时，`/tdd:bug` 与 `/tdd:done` 不自动写外部工具，只输出内容提示用户手动粘贴
+- **e2e_conventions 是 Skill 契约** — 即便 `[C] 完全重做`，这段也必须从 `templates/verify-project.md` 原样带出。仅 `testid_naming.scopes` 子字段允许由 F.6 用户输入覆盖；其余字段（selector_priority / testid_naming.pattern&rules&examples / data_state / spec_requirements / forbidden_in_e2e）禁止删除或修改

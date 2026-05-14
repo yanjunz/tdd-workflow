@@ -108,6 +108,55 @@ paths:
     # - "frontend/src"
     # - "mobile/lib"
     # - "packages/core/src"
+
+# ============ E2E 测试约定（项目无关的通用规范） ============
+# 这段是 tdd-workflow 内置的 E2E 测试规范，与 SKILL.md Rule 1 对齐。
+# Tester Agent 只读 spec 不读实现，因此关键元素的 testid 必须作为 spec 契约。
+# 项目特定的 scope 列表可在 testid_naming.scopes 里配置（默认空，由模块名自然推导）。
+e2e_conventions:
+  # 选择器优先级：从上到下依次尝试，越靠后越脆弱
+  selector_priority:
+    - "role + accessible name"                  # 例: getByRole('button', { name: '提交' })
+    - "data-testid"                             # 关键交互元素必须标，命名遵循下方规范
+    - "data-state"                              # 状态查询专用：data-state="idle|loading|done|error"
+    - "text content"                            # 仅用于稳定的文案断言
+    - "css selector"                            # 兜底，避免依赖结构层级
+
+  # testid 命名规范（kebab-case，自顶向下定位）
+  testid_naming:
+    pattern: "<scope>-<element>[-<identifier>]"
+    rules:
+      - "scope 用模块名（与 UC 模块命名对齐），项目可在 scopes 字段列出已用 scope"
+      - "element 用语义名（card / btn / input / tab / list / item ...），不写技术细节"
+      - "identifier 用业务键（资源 name / msg id），动态拼接时统一 kebab-case"
+      - "禁止把状态写进 testid（如 xxx-card-installed）——状态用 data-state 表达"
+    examples:
+      - "<module>-tab-<name>                       # 模块内 tab，例: settings-tab-general"
+      - "<module>-search-input                     # 搜索框，例: user-search-input"
+      - "<module>-card-<id>                        # 卡片，例: order-card-1001"
+      - "<module>-<action>-btn-<id>                # 卡片内动作按钮，例: order-cancel-btn-1001"
+      - "<module>-list / <module>-item-<id>        # 列表 + 条目"
+    # 项目实际使用的 scope（可选，由 /tdd:verify-setup 询问填入）
+    scopes: []                                  # 例: ["skill", "chat", "settings"]
+
+  # data-state 约定（运行时状态查询，避免 testid 状态污染）
+  data_state:
+    where: "标在卡片/按钮等会随业务状态变化的容器上"
+    values: "kebab-case 状态枚举（如 idle / loading / installed / error）"
+    example: '<div data-testid="order-card-1001" data-state="paid">'
+
+  # spec 编写要求
+  spec_requirements:
+    - "usecases.md 在描述每条 UC 时，列出涉及的关键元素 testid（成功路径 + 主要异常路径）"
+    - "新增 UI 元素时，先在 spec 里登记 testid，再在实现中标注；Tester 据此写测试"
+    - "遇到 spec 未定义的 testid 需求，Tester 应回报给主 agent 补 spec，而非自己猜"
+
+  # 禁止事项（与 .claude/skills/tdd-workflow/SKILL.md Rule 1 对齐）
+  forbidden_in_e2e:
+    - "page.evaluate 注入 store / 状态（绕过视图层）"
+    - "window.__test.* 等测试专用全局 API（等同状态注入，属集成测试层）"
+    - "mock 自家后端接口（mock 第三方接口需在测试代码内联说明原因）"
+    - "直接路由跳过首页入口（必须从真实入口走）"
 ---
 
 # 项目验证手册
