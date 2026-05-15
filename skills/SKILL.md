@@ -7,7 +7,7 @@ description: >
 user-invocable: true
 allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent, TeamCreate"
 metadata:
-  version: "3.2.0"
+  version: "3.3.0"
   compatible: "claude-code, cursor, cline, windsurf, codebuddy, github-copilot"
   hooks: "Installed to .claude/hooks/tdd/ via tdd-workflow init. See .claude/settings.json for registration."
 ---
@@ -119,7 +119,7 @@ Output after collection:
 
    **Exception:** Pure infrastructure setup (Phase 1: creating directories, Entity skeletons, module registration) is allowed as a separate phase since it's shared across all UCs.
 
-   **Database migration execution rule:** Phase 1 must include actually running the migration on local dev DB (not just writing the SQL file). After migration, run `schema:dump` if the project has that script.
+   **Database migration execution rule:** Phase 1 must include actually running the migration on local dev DB (not just writing the SQL file). After migration, run the project's schema dump command if one exists.
 
 7. **Step 6: Test coverage check (mandatory, cannot skip)**
 
@@ -281,7 +281,7 @@ Before marking ANY task `[x]`, you MUST verify with evidence:
 | Implementation | Source file exists + related tests pass |
 | Frontend page | All page files exist (framework-appropriate: tsx/vue/svelte/html+js+css) + registered in router/config |
 | Database migration | Schema inspection confirms new tables/columns exist |
-| Any task | **FORBIDDEN: marking [x] with "待后续", "TODO", "skip" in the same line. Use [!] for blocked tasks.** |
+| Any task | **FORBIDDEN: marking [x] for incomplete work. Use [!] for blocked tasks.** |
 
 If you cannot complete a task, you MUST either:
 - Mark `[!]` with a documented blocker reason
@@ -294,7 +294,7 @@ If you cannot complete a task, you MUST either:
 
 | Scenario Type | Check | Prompt |
 |--------------|-------|--------|
-| **DB migration executed** | **Phase 1 has migration task AND local DB has the new tables?** | Migration SQL exists but was never executed. Run it now and verify with `SHOW TABLES`. |
+| **DB migration executed** | **Phase 1 has migration task AND local DB has the new tables?** | Migration SQL exists but was never executed. Run it now and verify with `SHOW TABLES` or equivalent. |
 | **Real DB integration test** | **At least 1 test in tasks.md connects to real DB (not all mocked)?** | All tests use mock repositories. Add at least 1 integration test that writes to real DB and reads back to verify schema correctness. |
 | Error response parsing | Tests for "response structure doesn't match expected"? | Missing error response parsing test, suggest adding |
 | Crash/restart recovery | Tests for "state recovery after process restart"? | Missing crash recovery test, suggest adding |
@@ -307,7 +307,7 @@ If you cannot complete a task, you MUST either:
 When processing a Phase 1 migration task, the loop MUST:
 1. Execute the SQL file against local dev DB
 2. Verify tables/columns exist: `SHOW TABLES LIKE '<pattern>'` or equivalent
-3. Run `schema:dump` if project has it
+3. Run the project's schema dump command if one exists
 4. Only mark task `[x]` after verification passes
 
 If DB is not running or migration fails → STOP and ask user to fix DB before continuing. Do NOT proceed with mock-only tests and claim "verification passed".
@@ -351,7 +351,7 @@ REQUIRED:
         2. Start services if needed (health check from project.md)
         3. Write E2E tests starting from real user entry points:
            - Navigate from home/index page, not direct URL injection
-           - No page.evaluate() / setData() state injection bypassing UI
+           - No state injection bypassing UI interactions
            - No mocking your own backend endpoints
         4. Run ALL tests. Fix failures (Three-Strike Protocol applies).
         5. Report: N passed / N failed / N skipped (with skip reasons)
@@ -370,7 +370,7 @@ REQUIRED:
 | Check | Pass condition |
 |-------|---------------|
 | Agent tool was called | Tool call log shows Agent invocation |
-| Tests start from real entry points | No `relaunch_to('/pages/specific')` bypassing home nav |
+| Tests start from real entry points | No direct deep-link navigation bypassing home/app entry |
 | No bulk skips | Skipped count ≤ 3, each skip has documented reason |
 | No src_dirs reads in Tester prompt | Tester did not read implementation files |
 
@@ -378,12 +378,10 @@ If any check fails → mark Phase 3 tasks `[!]` blocked and report to user befor
 
 ### Why This Matters
 
-From document-copy (2026-05-13) experience:
-- Orchestrator wrote tests itself → used `relaunch_to()` bypassing home page entry
-- Result: missing `goToCopy` nav entry was invisible for 2 full rounds
-- Result: `globalData.baseUrl` undefined (all API calls broken) was invisible
-- Result: JWT guard on public endpoint was invisible
-- All bugs were only found when minium actually ran against real DevTools
+When the Orchestrator writes E2E tests itself (without a separate Tester Agent), it tends to:
+- Navigate directly to deep pages, bypassing real app entry flows
+- Assume implementation correctness it just wrote (confirmation bias)
+- Miss integration gaps that only appear when starting from a real user perspective
 
 The Tester Agent boundary exists precisely to catch these integration gaps.
 
@@ -417,11 +415,11 @@ Prefer running E2E against a real running service stack, not mocked responses.
 
 ```
 REAL mode (default):
-  1. Detect service port (use _devtools_port.py or equivalent auto-discovery first;
+  1. Detect service port (use auto-discovery from project config first;
      only ask user if auto-discovery fails after 2 retries)
   2. Verify service stack is running (health check from project.md)
   3. Seed test data
-  4. Run E2E — no API response mocking (no page.route() / fetch intercepts)
+  4. Run E2E — no API response mocking (no route intercepts for your own endpoints)
   5. Assert: UI state + API response + DB state (triple verification)
   6. Teardown test data
 
@@ -456,41 +454,64 @@ Each test must:
 - [x] 3.1 UC-01 E2E
 ```
 
-**Hard Rules (unchanged):**
+**Hard Rules:**
 
 ### Rule 1: Must cover real network layer
-```javascript
-// WRONG: Bypasses network layer entirely, API errors invisible
-page.evaluate(() => { window.__store__.state.status = 'done' })
 
-// CORRECT: Trigger real user action, let API calls happen
-await page.click('[data-testid="submit-btn"]')
-await expect(page.locator('[data-testid="success-msg"]')).toBeVisible()
-```
-
-**Rule 1 extension — no test-only runtime APIs in E2E:**
-
-Any form of test-only runtime command bus (e.g. `window.__test.*`,
-`globalThis.__e2e.*`, hidden URL params that short-circuit views) is
-treated as equivalent to `page.evaluate` state injection and is
-FORBIDDEN in E2E. The "abstraction" makes it look cleaner but the same
-integration bugs become invisible:
-
-- Removed/renamed UI entry points → test still green, real users blocked
-- Unbound click handlers → test still green, button does nothing
-- Broken input debounce / form validation → never triggered, never tested
-- Misconfigured route guards / auth middleware → never hit by test traffic
-
-If you genuinely need to drive store actions without a UI, that workload
-belongs in the **integration test layer** (no browser, no view tree),
-not in E2E. E2E exists specifically so UI-layer regressions can fail
-loudly; do not optimize that property away.
+Do not bypass the network layer with state injection or store manipulation.
+Trigger real user actions that cause actual API calls.
 
 ### Rule 2: Skipped tests must have documented reasons
+
+```
+# WRONG: Silent skip
+test.skip('env not supported')
+
+# CORRECT: Document reason and reference UC
+test.skip('UC-01 alt 4a: DB failure recovery — cannot simulate in local env, covered by unit test: <path>')
+```
+
 **If accumulated skips exceed 3, must establish mock/stub environment to resolve — no more skip stacking.**
 
 ### Rule 3: Assert results after every key action
+
 ### Rule 4: Assert specific values for critical business fields
+
+### Rule 5: Success path must reach the postconditions stated in usecases.md
+
+A "success path" E2E test MUST run all the way to the UC's **postconditions** — not stop at an intermediate step.
+
+**WRONG — test stops before postcondition:**
+```
+test "order full flow":
+  # Steps 1-3: inject uploaded state (OK to bypass file picker via test helpers)
+  set_uploaded_state(page, files)
+  assert page.data['allUploaded'] == True
+  # ← stops here, never calls POST /api/orders
+  # Named "full flow" but only covers half the UC
+  # DB constraints, order creation logic: completely invisible
+```
+
+**CORRECT — must verify the postcondition:**
+```
+test "order full flow":
+  # Steps 1-3: inject uploaded state (bypassing file picker is acceptable)
+  set_uploaded_state(page, files)
+
+  # Steps 4-5: proceed to confirmation, trigger the real write API
+  navigate_to_preview(page)
+  confirm_order(page)   # triggers POST /api/orders with real HTTP call
+
+  # Assert postcondition from usecases.md:
+  # "orders record created, status=pending_payment"
+  wait_until(page, lambda d: d['orderId'] is not None)
+  assert page.data['orderId'] is not None, 'Postcondition: order ID must be returned'
+```
+
+**Checklist before marking a success-path E2E as [x]:**
+- [ ] Every UC step that triggers a **write operation** (POST/PUT/DELETE) is actually executed (not skipped)
+- [ ] At least one **postcondition** from `usecases.md` is asserted (DB record created, status field, returned ID, etc.)
+- [ ] Test name accurately reflects actual coverage depth — if it only covers setup steps, name it accordingly, not "full flow"
 
 ---
 
@@ -531,11 +552,11 @@ When to use: after `/tdd:done`, or at any point you want to capture the developm
 1. Read `requirements.md`, `design.md`, `tasks.md` from current spec
 2. Scan git history for feature-related commits, reverts, fix iterations
 3. Generate `tdd-specs/<name>/tdd-practice-notes.md` covering:
-   - **需求背景**: what the user wanted
-   - **TDD 流程**: Phase 1-4 record, each behavior chain's RED/GREEN/接入
-   - **踩坑记录**: real problems encountered (from git history, not hypothetical)
-   - **文件清单**: new/modified files + test coverage numbers
-   - **核心经验**: 3-5 actionable lessons learned
+   - **Background**: what the user wanted and why
+   - **TDD process**: Phase 1-4 record, each RED/GREEN cycle
+   - **Pitfalls**: real problems encountered (from git history, not hypothetical)
+   - **File inventory**: new/modified files + test coverage numbers
+   - **Key lessons**: 3-5 actionable lessons learned
 4. Cross-check: pitfalls ≥ 1, lessons ≥ 3, file list matches git diff
 
 **Guardrails:**
@@ -657,66 +678,65 @@ Use direct `git commit` for these instead.
 
 ---
 
-## 交付后继续开发规范（Post-Delivery Development）
+## Post-Delivery Development
 
-> `/tdd:done` 后 harness 进入 `deliver` 状态。此后任何源码改动必须遵守以下规则，否则测试债务会迅速积累。
+After `/tdd:done`, the harness enters `deliver` state. Any source code change after this point must follow these rules to prevent test debt accumulation.
 
-### 场景 A：联调发现 bug
+### Scenario A: Bug found during integration testing
 
-**禁止**直接改代码，必须走 `/tdd:bug`：
+Never fix directly — always run `/tdd:bug`:
 
 ```
-发现 bug
-  → /tdd:bug（写复现测试 RED → 改代码 GREEN → 记录 Issue）
-  → 全量回归通过后提交
+Bug found
+  → /tdd:bug (write reproduction test RED → fix code GREEN → log Issue)
+  → full regression passes → commit
 ```
 
-即使 bug 看起来很小（一行代码），也必须先有复现测试。直接改代码无法确认修复范围，无法防止回归。
+Even for a one-line fix, a reproduction test must come first. Fixing without a test cannot confirm the fix scope or prevent regression.
 
-### 场景 B：Spec 交付后追加功能
+### Scenario B: Adding functionality after spec delivery
 
 ```bash
-# 1. 在 tasks.md 末尾追加任务（标注 Post-delivery: <说明>）
-# 2. 把 harness 改回 green
+# 1. Append tasks to tasks.md (annotate with: Post-delivery: <description>)
+# 2. Reset harness back to green
 sed -i 's/phase=deliver/phase=green/' tdd-specs/<spec>/.harness
-# 3. 走正常 loop → done 流程
+# 3. Run normal loop → done flow
 ```
 
-不允许在 `deliver` 阶段直接修改实现代码而不追加测试。
+Modifying implementation code in `deliver` state without appending tests is not allowed.
 
-### 场景 C：纯样式 / UX / 配置调整
+### Scenario C: Pure style / UX / config changes
 
-可以直接改，但：
-- commit message 注明 `[style]` / `[ux]` / `[config]`
-- 改后全量跑测试确认无回归
+May be done directly, but:
+- Annotate commit message with `[style]` / `[ux]` / `[config]`
+- Run full test suite after the change to confirm no regressions
 
-### /tdd:done 检查：交付后改动核查
+### `/tdd:done` check: post-delivery change audit
 
 ```bash
-# 读取 paths.src_dirs 配置（如未配置则用检测结果）
+# Read paths.src_dirs config (fall back to common dirs if not configured)
 SRC_DIRS=$(grep -A20 'src_dirs:' tdd-specs/.verify/project.md 2>/dev/null | \
   grep '^\s*-' | sed "s/.*- //;s/['\"]//g" | tr '\n' ' ')
-# 如果没有配置，自动检测常见目录
 [ -z "$SRC_DIRS" ] && SRC_DIRS="src app lib"
 
-# 查看本 spec 周期内修改的源文件
+# List source files modified during this spec cycle
 git log --oneline --name-only -- $(echo $SRC_DIRS | xargs -n1 printf "'%s/**' ") \
   | grep -v "^[a-f0-9]" | sort -u | head -30
 ```
 
-对照 tasks.md 确认：
-- 每个新增业务方法 → 有单元测试覆盖
-- 每个新增/修改 API 接口 → 有 e2e 测试覆盖
-- 联调期间的 bug 修复 → 有对应 Issue 记录
+Cross-check against tasks.md:
+- Every new business method → has unit test coverage
+- Every new/modified API endpoint → has E2E test coverage
+- Every bug fix during integration → has corresponding Issue record
 
-**发现未覆盖逻辑 → 停止交付，补测试后重跑 `/tdd:done`。**
+**Uncovered logic found → stop delivery, add tests, re-run `/tdd:done`.**
 
-### 提交前自查清单
+### Pre-commit self-check
 
 ```
-□ 每个新增业务方法有单元测试吗？
-□ 每个新增/修改 API 接口有 e2e 测试吗？
-□ 集成了外部服务？→ 有 mock/stub 测试吗？
-□ 全量测试跑过了吗？（不是只跑单模块）
-□ 有 bug 修复吗？→ 有 Issue 记录和复现测试吗？
+□ Does every new business method have a unit test?
+□ Does every new/modified API endpoint have an E2E test?
+□ Any external service integrations? → mock/stub tests?
+□ Full test suite run (not just single module)?
+□ Any bug fixes? → Issue record and reproduction test?
 ```

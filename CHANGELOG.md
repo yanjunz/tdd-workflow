@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.0] — 2026-05-15
+
+### Added
+
+- **E2E Rule 5: success path must reach UC postconditions** — 成功路径 E2E 必须执行所有触发写操作（POST/PUT/DELETE）的 UC 步骤，并断言至少一项 `usecases.md` 后置条件（DB 记录、状态字段、返回 ID 等）；提供了 WRONG/CORRECT 对比示例和标 `[x]` 前的三项检查清单
+
+### Changed
+
+- **全文英文化** — SKILL.md 中文描述（场景 A/B/C、提交前自查清单、踩坑记录等）统一改为英文，消除语言混用；`/tdd:notes` 各字段名同步为英文
+- **去框架绑定措辞** — `schema:dump` 改为"project's schema dump command"；`SHOW TABLES` 改为"SHOW TABLES or equivalent"；`page.evaluate()/setData()` 改为"state injection bypassing UI interactions"；`relaunch_to()` 改为"direct deep-link navigation bypassing home/app entry"；`_devtools_port.py` 改为"auto-discovery from project config"
+- **Rule 1 精简** — 移除代码示例（保持文字描述），将 test-only runtime API 扩展段合并到 Rule 1 主体
+- **Rule 2 示例** — 新增 WRONG/CORRECT skip 示例，明确 skip 需引用 UC 编号和替代覆盖路径
+- **Why This Matters 改写** — 去除项目特定细节（`goToCopy`、`globalData.baseUrl`），改为通用原则描述
+
 ## [3.2.0] — 2026-05-14
 
 ### Added
