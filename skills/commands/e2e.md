@@ -47,6 +47,9 @@ Determine test command and test file location based on results.
 > - [A] 我来启动，等我说好了继续
 > - [B] 跳过此端 E2E（降级为 `fallback_cmd` 如有配置）
 > - [C] 中止 /tdd:e2e
+> - [D] 服务确实在线，readiness 脚本可能有 bug（帮我诊断）
+
+**选 [D] 时**：用基础方式交叉验证（`lsof -i:<port>` / `curl` 直接访问），如果基础验证通过但 readiness 脚本报失败 → 提示修复 readiness 脚本后继续。
 
 **全部端都失败** → 不要继续写测试，中止并提示用户启动服务。
 **部分端失败** → 对失败的端逐个询问，通过的端正常继续。

@@ -1,6 +1,6 @@
 {
   "name": "tdd-workflow",
-  "version": "3.5.0",
+  "version": "3.5.1",
   "description": "TDD Workflow CLI — install TDD skills for AI coding tools",
   "type": "module",
   "bin": {

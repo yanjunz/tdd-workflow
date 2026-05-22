@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.5.1] — 2026-05-22
+
+### Added
+
+- **`/tdd:e2e` & `/tdd:verify-setup` 新增选项 [D] "服务确实在线，readiness 脚本可能有 bug"** — 此前用户只有"我来启动 / 跳过 / 中止 / 删配置"四选项，遇到 readiness 脚本本身有 bug 时只能选删除或跳过；新增 [D] 触发交叉验证（`lsof -i:<port>` / `curl` 直接访问），基础验证通过但脚本报失败 → 要求修复脚本后再继续，避免被错误脚本卡死
+
+### Changed
+
+- **新增原则 "readiness 脚本也需要验证正确性"** — 不是"能跑"就够了，还要"已知在线时返回 pass"；不能信任有 bug 的脚本写入 project.md
+
 ## [3.5.0] — 2026-05-22
 
 ### Added
