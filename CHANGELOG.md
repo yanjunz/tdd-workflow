@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.5.0] — 2026-05-22
+
+### Added
+
+- **`/tdd:retro` 新命令** — TDD workflow 自身回顾改进入口。5-why 根因分析 → 7 类根因分类（验证缺失/假设未校验/反馈延迟/覆盖盲区/Guardrail 失效/知识盲区/降级未授权）→ 文件级改进方案 → 写入 `tdd-specs/.retro/<date>-<keyword>.md`。与 `/tdd:bug`（修产品代码）和 `/tdd:notes`（纯记录）划清边界：retro 只改 skill .md / project.md / 原则文档
+- **`/tdd:verify-setup` Step 9.5 Smoke-test 配置（mandatory）** — 写完 project.md 后逐项验证：每个 `endpoints.*.readiness` 实际执行一次、`test_cmd` 主命令存在性、`src_dirs` 路径存在性；失败不静默跳过，用 AskUserQuestion 让用户处理
+- **`/tdd:e2e` 逐端 readiness 检查** — Pre-check 改为按 `endpoints` 配置逐端执行 readiness，输出每端状态；任何端失败必须 AskUserQuestion（[A] 我来启动 / [B] 跳过此端 / [C] 中止），不能自行降级
+
+### Changed
+
+- **新增 guardrail "降级必须经用户同意"** — `/tdd:e2e` 中 readiness 失败时不能自行决定"降级为 jest"或"跳过此端"，必须显式询问
+- **新增 guardrail "动态值不能硬编码"** — `/tdd:verify-setup` 中如果配置值来源是动态的（端口在文件里、路径含时间戳），必须用检测命令读取，不能写死
+
 ## [3.4.0] — 2026-05-22
 
 ### Added
