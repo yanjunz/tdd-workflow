@@ -366,6 +366,39 @@ else
 fi
 ```
 
+### 9.5 Smoke-test 配置（mandatory）
+
+写完 project.md 后，**逐项验证关键命令可执行**。不能只写入就交付——必须确认写的东西能跑。
+
+**验证项**：
+
+| 验证对象 | 方法 | 失败处理 |
+|---------|------|---------|
+| 每个 `endpoints.*.readiness` | 实际执行一次 | 失败 → 询问用户 |
+| 每个 `endpoints.*.test_cmd` | `which <主命令>` 或 `<cmd> --help` | 找不到 → 报错 |
+| 每个 `src_dirs` 路径 | `ls -d <path>` 确认存在 | 不存在 → 警告 |
+| `paths.usecases.dir` / `paths.issues.dir` | 检查存在性 | 不存在 → 仅提示（首次写入时创建） |
+
+**逐端 readiness 验证**：
+
+```
+[Smoke-test] 验证 endpoints readiness
+  ✓ backend:     curl -sf -k https://localhost:3443/api/health → OK
+  ✓ web-admin:   curl -sf http://localhost:6173 → OK
+  ✗ miniprogram: <readiness command> → FAILED: <错误信息>
+```
+
+**失败时不能静默跳过**，用 AskUserQuestion：
+> "`<endpoint>` 的 readiness 检测失败：`<错误信息>`。如何处理？"
+> - [A] 修正命令（告诉我正确的检测方式）
+> - [B] 当前服务未运行，命令本身正确（标记为已确认，跳过执行验证）
+> - [C] 删除此端配置
+
+**关键原则**：
+- 生成的每条命令**必须至少执行一次**确认可运行，不能只靠文档推测
+- 如果 readiness 依赖动态值（如端口存在文件里），必须用读取该文件的命令，不能硬编码端口号
+- 对于需要特殊环境的端（如设备端需要开发者工具），用 [B] 标记即可——但必须明确告知用户"此命令未经实际验证"
+
 ### 10. 输出 & 下一步提示
 
 ```
@@ -395,3 +428,5 @@ fi
 - **paths 是配置入口** — 所有涉及 UC/Issue 路径的命令都从 paths 读，不允许硬编码 docs/usecases 或 docs/issues
 - **外部工具模式保守** — `enabled: false` 时，`/tdd:bug` 与 `/tdd:done` 不自动写外部工具，只输出内容提示用户手动粘贴
 - **e2e_conventions 是 Skill 契约** — 即便 `[C] 完全重做`，这段也必须从 `templates/verify-project.md` 原样带出。仅 `testid_naming.scopes` 子字段允许由 F.6 用户输入覆盖；其余字段（selector_priority / testid_naming.pattern&rules&examples / data_state / spec_requirements / forbidden_in_e2e）禁止删除或修改
+- **配置写完必须 smoke-test** — 每条 readiness / test_cmd 实际执行一次确认可运行，不能只靠文档推测就写入
+- **动态值不能硬编码** — 如果值来源是动态的（端口在文件里、路径含时间戳/用户名），必须用检测命令读取，不能写死数字
