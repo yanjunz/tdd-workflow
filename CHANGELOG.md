@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.4.0] — 2026-05-22
+
+### Added
+
+- **多端 E2E 支持** — `/tdd:e2e` 按 `tdd-specs/.verify/project.md` 的 `endpoints` 配置分端生成测试（type=api/browser/device），每端独立指定 `framework`/`test_dir`/`test_cmd`；测试清单按端分组展示供用户确认；UC → E2E 映射表新增"端"列
+- **E2E Rule 6: Display steps must have browser/device E2E** — UC 中"用户看到 X / 页面展示 Y / 列表显示 Z"等展示类步骤必须有对应的 browser 或 device 端 E2E 测试，不能仅靠 API E2E 断言返回值声称"展示已验证"
+- **`/tdd:done` Stage 1 全端 E2E** — 新增 `e2e_test.*` 逐端执行步骤，按 `endpoints` 配置遍历；某端环境不可用时标记 skipped 并记录原因
+
+### Changed
+
+- **`/tdd:done` Stage 2 自动判断** — Stage 1 全端 E2E 全绿且 feature 无 `manual_flows` 定义时自动 PASS Stage 2，直接进 Stage 4；仅在有 skip 端或 `manual_flows` 时才询问用户人工验证
+- **`/tdd:e2e` 全文去框架硬编码** — 移除 Playwright/Cypress/supertest 等具体框架名，改为从 `endpoints` 配置读取；pre-check 健康检查改用 `environments.dev.readiness` 配置；tags 移除 `playwright, cypress`
+
 ## [3.3.0] — 2026-05-15
 
 ### Added
