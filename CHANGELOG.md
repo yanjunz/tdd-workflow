@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.6.0] — 2026-05-25
+
+### Added
+
+- **`/tdd:e2e` Step 7.1: 证据留存（UI 端 mandatory）** — `type=browser` 和 `type=device` 端的 E2E 必须保留可视化截图证据，保存到 `tdd-specs/<feature>/evidence/`（随 feature 归档可追溯）；测试通过后主动用 Read tool 展示 1-2 张关键断言点截图给用户审计；`type=api` 端保留关键响应数据摘要
+- **`/tdd:done` Stage 1 UI 端截图证据展示** — 全端 E2E 运行后，UI 端必须主动展示截图，让用户确认"AI 真的看到了页面上的目标元素"，避免只靠文字 pass/fail 声称已验证
+- **新增 guardrail "有 UI 的端 E2E 必须留截图证据"** — browser + device 端跑完后主动向用户展示关键截图（Read tool 读图片），不能只靠文字声称验证过
+
 ## [3.5.1] — 2026-05-22
 
 ### Added
