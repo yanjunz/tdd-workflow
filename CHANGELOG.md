@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.7.0] — 2026-05-25
+
+### Added
+
+- **`/tdd:e2e` Rule 7: Cross-UC data flow must assert actual values** — 当展示类 UC 的数据来源是另一个 UC（如"UC-01 心跳上报版本 → UC-05 页面展示版本"），E2E 不能只断言"有数据渲染"，必须断言"显示的值 = 上游实际值"；提供 WRONG/CORRECT 对比示例（仅断言存在 vs 断言 = 已知数据源/API 响应）；列出识别跨 UC 数据流的 3 个信号（"由 XX 上报"标注、"展示 XX 上报的 YY"步骤、数据不是本 UC 产生）
+- **派生 E2E 清单跨 UC 标注** — Step 4 派生测试清单时，跨 UC 数据流场景标注 `[跨UC: UC-XX→UC-YY]`，提醒编写时必须验证值的正确性
+
+### Changed
+
+- **新增 guardrail "跨 UC 数据流必须断言实际值"** — 看到截图里有数据不等于数据正确；展示类 UC 如果数据来源是另一个 UC/端，不能只断言"有值"
+
 ## [3.6.1] — 2026-05-25
 
 ### Changed
