@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.6.1] — 2026-05-25
+
+### Changed
+
+- **README 中英分版** — 原 `README.md` 重命名为 `README.zh-CN.md`（中文完整版，国内用户阅读流畅），新增英文版 `README.md`（npmjs.com 默认渲染，面向国际用户的精简介绍 + Quick start + 命令表 + 架构概述）；两份相互链接
+
 ## [3.6.0] — 2026-05-25
 
 ### Added
