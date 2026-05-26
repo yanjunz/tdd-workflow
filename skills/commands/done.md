@@ -246,6 +246,27 @@ sed -i '' 's/verify_local_ok=.*/verify_local_ok=true/' "tdd-specs/$SPEC/.harness
 sed -i '' 's/verify_stage=.*/verify_stage=3/' "tdd-specs/$SPEC/.harness"
 ```
 
+#### 6.0 凭据就绪前置检查（mandatory）
+
+部署前**必须确认 staging 登录凭据可用**，否则后续无法完成 UI/API 层验证。
+
+1. 读取 `tdd-specs/.verify/project.local.md` 的 `staging` 凭据配置
+2. 用凭据调一次 staging login 接口（从 project.md `environments.staging` 配置读取 URL），确认能拿到 token
+
+```
+[Staging 凭据检查]
+  ✓ project.local.md 存在 staging 凭据
+  ✓ 登录验证: POST <staging_url>/<login_endpoint> → token 获取成功
+```
+
+**如果缺失或失败**，用 AskUserQuestion：
+> "Staging 登录凭据不可用：`<具体原因>`。如何处理？"
+> - [A] 我来提供/修复凭据（等我说好了继续）
+> - [B] 跳过 UI/API 验证，只做 deploy + readiness（降级，需记录原因）
+> - [C] 中止 Stage 3
+
+**选 [B] 时**：在 verification-report.md 明确标注"Stage 3 降级：仅 deploy + readiness，未完成 API/UI 层验证（原因：<凭据问题>）"。**不能标记为完整 PASS**。
+
 #### 6.1 执行 deploy 命令
 
 ```bash
@@ -265,7 +286,23 @@ fi
 
 #### 6.3 执行 post_deploy_smoke
 
-逐个展示给用户，等自由回复。
+**自动化验证**（feature 涉及 UI 端时 mandatory）：
+
+如果 feature 的 E2E 涉及 `type=browser` 或 `type=device` 端，staging smoke **必须通过 API 登录 + 数据查询**验证，不能只靠 deploy + readiness 就声称通过。
+
+```
+[Staging Smoke — 自动化]
+  1. 用 project.local.md 凭据登录 staging API → 获取 token
+  2. 调用 feature 相关的 API 接口 → 验证返回数据正确
+  3. 对比返回数据与预期值（从 usecases.md 后置条件推导预期）
+```
+
+**验证层级规则**：
+- **API 层验证是最低要求** — 覆盖序列化、权限、过滤逻辑
+- **DB 直查只能作为补充证据** — 不能替代 API 层验证。DB 有数据不等于"用户通过前端能看到"
+- **如果 API 也不可用**（如凭据问题），必须 AskUserQuestion 阻塞，不能用更低层级替代后声称通过
+
+自动化验证之后，如有需要人工确认的 flow（如 UI 样式、交互体验），逐个展示给用户，等自由回复。
 
 #### 6.4 在 staging 上跑 feature flows（可选）
 
@@ -528,3 +565,5 @@ UC 同步记录: tdd-specs/<name>/usecases.synced.md
 - **项目级 UC 目录保持稳定** — 除非用户明确选择同步，不要修改已有内容
 - **从 paths 配置读路径** — 所有 UC 路径引用都从 `paths.usecases` 读，不硬编码 `docs/usecases/`
 - **外部工具模式不自动写** — enabled=false 时只输出内容 + 提示，不调用外部 API
+- **验证降级必须授权** — 如果无法完成预定验证路径（如登录不通、环境不可用），必须 AskUserQuestion 让用户决定，不能自己找替代方案（如 DB 直查）后声称"验证通过"。降级后的报告必须明确标注"降级"而非"PASSED"
+- **staging 凭据不可用时阻塞** — Stage 3 开始前必须确认 staging 登录凭据可用（从 project.local.md 读取 + 实际 login 验证），不可用则 AskUserQuestion 阻塞，不能跳过后继续
