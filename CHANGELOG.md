@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.8.0] — 2026-05-26
+
+### Added
+
+- **`/tdd:done` Stage 3 凭据就绪前置检查（mandatory）** — Stage 3 开始前必须确认 staging 登录凭据可用：读取 `project.local.md` 的 staging 凭据 + 实际调用 login 接口验证可获取 token；失败必须 AskUserQuestion 让用户决定（[A] 修复凭据 / [B] 降级仅 deploy+readiness / [C] 中止），不能跳过后继续
+- **Stage 3 自动化 smoke 验证** — UI 端 feature 必须通过 API 登录 + 数据查询验证：调用 feature 相关 API 接口 → 验证返回数据与 usecases.md 后置条件预期一致；自动化验证之后才进入人工确认环节
+- **验证层级规则** — API 层验证是最低要求（覆盖序列化、权限、过滤逻辑）；DB 直查只能作为补充证据，不能替代 API 层；API 不可用时 AskUserQuestion 阻塞，不能用更低层级替代后声称通过
+
+### Changed
+
+- **新增 guardrail "验证降级必须授权"** — 无法完成预定验证路径（登录不通、环境不可用）时必须 AskUserQuestion 让用户决定，不能自己找替代方案后声称"验证通过"；降级后报告必须明确标注"降级"而非"PASSED"
+- **新增 guardrail "staging 凭据不可用时阻塞"** — Stage 3 开始前必须确认登录凭据可用，不可用则阻塞，不能跳过后继续
+
 ## [3.7.0] — 2026-05-25
 
 ### Added
