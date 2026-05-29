@@ -61,6 +61,13 @@ export const SUPPORTED_TOOLS: AITool[] = [
     skillsDir: '.github/skills/tdd-workflow',
     commandsDir: '.github/commands/tdd',
   },
+  {
+    id: 'codex',
+    name: 'OpenAI Codex',
+    markerDir: '.codex',
+    skillsDir: '.codex/skills/tdd-workflow',
+    commandsDir: '.codex/commands/tdd',
+  },
 ];
 
 /**

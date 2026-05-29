@@ -7,6 +7,11 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **`init` 漏装 `STAGING_SMOKE.md`** — installer 之前硬编码只拷贝 `SKILL.md`，导致 v3.10.0 新增的 sibling 文件 `STAGING_SMOKE.md`（SKILL.md Rule 6 / Type B 路径会读取）在 `npx tdd-workflow init` 时未被安装，AI 跟到 staging smoke 步骤会找不到文件。改为扫描 `skills/` 根目录下所有 `*.md` 文件，未来再加 sibling 文档也不会漏
+- **`init --tools codex` 报 Unknown tool** — v3.10.0 changelog 提到的 codex 支持实际未落地（`SUPPORTED_TOOLS` 里没有 codex 条目，`compatible` 子命令也不存在）。本版补齐项目级 codex 支持：`init --tools codex` 安装到 `.codex/skills/tdd-workflow/SKILL.md` + `.codex/commands/tdd/*.md`（与 cursor/cline 项目级模式一致）
+
+### Known limitations
+
+- **codex 全局 prompts（`~/.codex/prompts/`）暂不支持** — v3.10.0 changelog 中预告的 `compatible` 子命令（"装到 ~/.codex/prompts/ 作为全局 slash commands"）尚未实现，规划在 v3.11 单独提供。需要全局 codex prompts 的用户暂时只能手动从 `.codex/commands/tdd/` 复制
 
 ## [3.10.0] — 2026-05-29
 
