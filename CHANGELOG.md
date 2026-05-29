@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.10.0] — 2026-05-29
+
+### Added
+
+- **`/tdd:e2e` Type Selection（Type A vs Type B）** — 在 Step 1 强制区分 E2E 目标类型：Type A = 用户流程验证（real user flow，端到端走完点击/输入/截图）；Type B = staging smoke 反向证据验证（API 层调用 + 后置条件断言，覆盖序列化/权限/过滤）。两类目标的产出与门禁不同，混用会让"通过"失去意义
+- **`skills/STAGING_SMOKE.md`** — Type B 的硬规则手册：B1 必须以 staging 凭据登录、B2 必须断言后置条件实际值、B3 不能用 health check 替代业务断言、B4 凭据不可用必须 AskUserQuestion 阻塞；附 Negative-Proof Checklist（"如果 feature 坏掉，这个 smoke 会不会红？"）
+- **`/tdd:e2e` Rule 6（Type B targets 必须产出 staging-smoke-design.md）** — 派生 E2E 清单时，凡是标注 Type B 的 target 必须先产出 design 文档（覆盖路径 / 凭据 / 断言点），design 文档缺失不能进入实现
+- **`compatible` 子命令支持 codex** — `npx tdd-workflow compatible` 新增 codex 适配（与 claude-code / cursor / copilot 并列）
+
+### Changed
+
+- **`/tdd:e2e` Step 4 派生表新增 Type 列** — 每行测试必须标注 Type A / Type B；Type B 行额外列出"反向证据断言点"
+
 ## [3.8.0] — 2026-05-26
+
 
 ### Added
 
