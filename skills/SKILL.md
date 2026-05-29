@@ -7,8 +7,8 @@ description: >
 user-invocable: true
 allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent, TeamCreate"
 metadata:
-  version: "3.8.0"
-  compatible: "claude-code, cursor, cline, windsurf, codebuddy, github-copilot"
+  version: "3.10.0"
+  compatible: "claude-code, codex, cursor, cline, windsurf, codebuddy, github-copilot"
   hooks: "Installed to .claude/hooks/tdd/ via tdd-workflow init. See .claude/settings.json for registration."
 ---
 
@@ -318,6 +318,28 @@ If DB is not running or migration fails → STOP and ask user to fix DB before c
 
 **Phase 3: E2E acceptance tests.**
 
+### E2E Type Selection (mandatory first decision)
+
+Before writing any test, classify each target:
+
+- **Type A — User-Flow E2E** (controlled dev/CI env, seedable, 3rd-party mockable):
+  follow Hard Rules 1–5 in this file.
+- **Type B — Staging Smoke** (real external deps, real credentials, uncontrolled
+  data, cannot mock): **MUST read `STAGING_SMOKE.md` (sibling file)** and follow
+  its Hard Rules B1–B4 + produce `tdd-specs/<feature>/staging-smoke-design.md`
+  with the Negative-Proof Checklist filled in.
+
+If a target involves real upstream dependencies that the dev/CI environment
+cannot reach or mock (e.g. an external API only accessible from staging/prod
+network, a vendor SDK requiring real credentials, a DB whose schema lives
+outside your control), it is Type B by definition. Never write it as a Type A
+test with weakened assertions like `status < 500` or `[200, 4xx]` — that
+pattern silently passes when the real dependency is fully broken. See
+`STAGING_SMOKE.md` Anti-Patterns.
+
+When both types are needed for one feature, produce **two separate test
+files** in the project's E2E directory. Do not merge.
+
 ### MANDATORY FIRST STEP — Spawn Tester Agent (cannot skip)
 
 **Before writing a single line of test code**, you MUST call the `Agent` tool to spawn a Tester Agent. Writing E2E tests directly as the main agent is FORBIDDEN when the feature has 2+ UCs.
@@ -512,6 +534,28 @@ test "order full flow":
 - [ ] Every UC step that triggers a **write operation** (POST/PUT/DELETE) is actually executed (not skipped)
 - [ ] At least one **postcondition** from `usecases.md` is asserted (DB record created, status field, returned ID, etc.)
 - [ ] Test name accurately reflects actual coverage depth — if it only covers setup steps, name it accordingly, not "full flow"
+
+### Rule 6: Type B targets defer to STAGING_SMOKE.md
+
+Rules 1–5 above govern **Type A** (user-flow E2E in controlled environments).
+For any test target that hits real external dependencies which cannot be
+mocked or seeded (Type B per the type selection at the top of this section):
+
+- Hard Rules 1–5 are **not sufficient** — Rule 1 ("real network layer") is
+  satisfied, but assertion strength rules don't translate (no postcondition,
+  no UC path, no seedable data).
+- Apply `STAGING_SMOKE.md` Hard Rules B1–B4 instead, and produce the required
+  `staging-smoke-design.md` with Negative-Proof Checklist answers before
+  marking the task `[x]`.
+
+The Orchestrator enforcement checklist for Phase 3 gains one row when any
+Type B test exists in the feature:
+
+| Check | Pass condition |
+|-------|---------------|
+| Type B design doc | `tdd-specs/<feature>/staging-smoke-design.md` exists with B3 answers filled in |
+
+Missing the design doc → Type B task stays `[!]` until produced.
 
 ---
 
