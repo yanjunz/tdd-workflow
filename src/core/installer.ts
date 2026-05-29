@@ -37,13 +37,16 @@ export function installForTool(
   const result: InstallResult = { tool, filesWritten: [], skipped: [], hooksInstalled: false };
 
   if (delivery === 'skills' || delivery === 'both') {
-    // Copy SKILL.md
-    copyFile(
-      join(skillsRoot, 'SKILL.md'),
-      join(projectDir, tool.skillsDir, 'SKILL.md'),
-      force,
-      result,
-    );
+    // Copy all top-level .md files (SKILL.md, STAGING_SMOKE.md, and any future siblings)
+    for (const file of readdirSync(skillsRoot)) {
+      if (!file.endsWith('.md')) continue;
+      copyFile(
+        join(skillsRoot, file),
+        join(projectDir, tool.skillsDir, file),
+        force,
+        result,
+      );
+    }
 
     // Copy templates/
     const templatesDir = join(skillsRoot, 'templates');

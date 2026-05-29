@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.10.1] — 2026-05-29
+
+### Fixed
+
+- **`init` 漏装 `STAGING_SMOKE.md`** — installer 之前硬编码只拷贝 `SKILL.md`，导致 v3.10.0 新增的 sibling 文件 `STAGING_SMOKE.md`（SKILL.md Rule 6 / Type B 路径会读取）在 `npx tdd-workflow init` 时未被安装，AI 跟到 staging smoke 步骤会找不到文件。改为扫描 `skills/` 根目录下所有 `*.md` 文件，未来再加 sibling 文档也不会漏
+
 ## [3.10.0] — 2026-05-29
 
 ### Added
