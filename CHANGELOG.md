@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.11.1] — 2026-06-02
+
+### Fixed (correction of 3.11.0)
+
+- **撤回 3.11.0 中关于 Claude Code Agent 工具行为的错误判断**。3.11.0 假设"Claude Code 的 sub-agent 工具是同 turn 内串行/伪并行"，并据此把 `commands/loop.md` 限定为 sequential single-Coder、把"并行 Coder dispatch"的责任全部外推给 host 平台。事实校正：**Claude Code 的 Agent 工具支持同一 turn 内多个 tool call 真正并发执行**，配合 `isolation: "worktree"` 提供文件隔离，可在 skill 内部直接落地"一 UC 一 Coder 并行"。
+
+### Changed
+
+- **`commands/loop.md` 顶部执行模式声明重写** — 从单一的 "Sequential single-Coder" 改为 **Mode A（Parallel multi-Coder，host 支持时优先）/ Mode B（Sequential，fallback）二元分支**。同时撤回原来"不要在本命令内 fan out Coder"的警告（该警告基于 3.11.0 的错误前提）
+- **`commands/loop.md` 新增 "Parallel dispatch flow (Mode A)" 段** — 给出参考执行流程：扫 Phase 2 → 按 UC 分组 → 列各 UC touched files → 计算独立性 → 取独立子集（cap 2–5 per turn）→ 同 turn 发 N 个 Agent tool call（带 `isolation: "worktree"`）→ 汇合 + 跑全量测试 → 递归处理依赖 UC。该流程是 Orchestrator 临场执行的指南，**不是机械固定步骤**——独立性检查 <2 时自动 fallback 到 Mode B
+- **`SKILL.md` `/tdd:loop` Architecture 段重写** — 把 3.11.0 推给 host 平台的"并行 dispatch 责任"**收回到 skill 自己**。新结构：Mode A（在 Claude Code 等支持并发的 host 上由 loop.md 直接 spawn N 个 Coder）+ Mode B（其他 host 的 fallback）。"When parallel is safe / unsafe" 判定表保留，定位从"host 调度建议"改回"skill 内部判定"
+
+### Rationale
+
+3.11.0 的核心错误是误判了 Claude Code 的 Agent 工具能力（事实是支持真并发，且有 `isolation: "worktree"` 文件隔离机制）。该错判导致两个连锁问题：(1) loop.md 主动放弃了在 Claude Code 上能享受到的真并行加速；(2) SKILL.md 把本属于 skill 自己能兑现的并行能力外推为"host 平台责任"，对 Claude Code 用户构成误降级。本版本在保留 3.11.0 "按 host 能力分支"这一正确思路的前提下，把分支从"sequential-only + 外推 host"修正为"Mode A 优先 + Mode B fallback"，恢复 Claude Code 路径的并行能力。
+
+对 Cursor / Cline / CodeBuddy / Codex / GitHub Copilot 等没有真并发 sub-agent 的 host，行为与 3.11.0 一致（走 Mode B sequential）—— 本次修正不会让这些 host 的体验回退。
+
+### Out of scope (still planned)
+
+- **tasks.md UC 依赖元数据**（"UC-X depends on: UC-Y / none" + "UC-X touches: <file paths>"）—— 让 Mode A 的独立性检查从"临场扫描 + 人脑判断"升级为"机械可消费的元数据"，由 `/tdd:ff` 在 spec 阶段就标注好。仍在下版规划中
+
+## [3.11.0] — 2026-06-02
+
+### Changed
+
+- **修复 SKILL.md 与 commands/loop.md 之间的契约不一致** — SKILL.md `/tdd:loop` 段宣称"Spawn multiple Coder Agents simultaneously (one per UC module)"，但 `commands/loop.md` 实际只实现单 Coder 串行处理。本版本走分层契约方案：明确 `commands/loop.md` 的支持模式为 **sequential single-Coder**（最低能力底线，所有 host 平台都能跑），把"并行 dispatch"的责任**外推到 host 平台**（multi-agent squad runtime / 自建 orchestrator），由 host 读 tasks.md Phase 2 分组后自行决定是否一 UC 一 Coder 并行启动
+- **SKILL.md `/tdd:loop` Architecture 段重写** — 移除"Spawn multiple Coder Agents simultaneously"承诺；改为分两段说明：(1) reference loop.md 是 sequential single-Coder 模式（适用所有 host）；(2) 新增 "Parallel dispatch (host-platform responsibility)" 小节，描述 host 平台如何基于 tasks.md UC 分组实现并行（含 parallel-safe / unsafe 判定表）。原"When to use parallel Coders"判定规则迁移至此节，定位从"loop 内部行为"改为"host 调度建议"
+- **commands/loop.md 顶部声明执行模式** — 新增 "Execution mode: Sequential single-Coder" 显式说明；并增加一段 caveat 警告："不要在本命令内 fan out Coder——同 turn 串行 sub-agent 调用既无真实并行性，又会撑爆 turn 预算"
+
+### Rationale
+
+实测发现 Claude Code / Cursor / Codex / Cline 等主流 host 的 sub-agent 工具都是同 turn 串行（spawn 一个、等返回、再 spawn 下一个），并不是真正的并行执行。原 SKILL.md 的并行承诺无论在哪个 host 上都无法兑现，构成卖点虚假。本次修复把承诺降级到所有 host 都能保证的"单 Coder 串行"，同时为未来真正支持并行 spawn 的 host 平台（如 multi-agent squad）保留接口
+
+### Out of scope (planned for next minor)
+
+- **tasks.md UC 依赖元数据**（"UC-X depends on: UC-Y / none" + "UC-X touches: <file paths>"）—— 这是让 host 平台真正能消费的并行调度元数据，需要改 `/tdd:ff` 的 tasks.md 生成规则，工作量较大。本版本仅修复契约不一致，元数据落地另起 spec
+
 ## [3.10.1] — 2026-05-29
 
 ### Fixed

@@ -7,7 +7,51 @@ tags: [tdd, workflow, loop, multi-agent]
 
 Auto TDD cycle until `tasks.md` Phase 2 is all `[x]`.
 
+**Execution mode** — pick at the start of the loop based on host capability:
+
+- **Mode A — Parallel multi-Coder** (preferred when host supports concurrent Agent tool
+  calls, e.g. Claude Code): same-turn spawn N Coder sub-agents, one per independent UC
+  module, each in its own worktree. See "Parallel dispatch flow (Mode A)" below.
+- **Mode B — Sequential single-Coder** (fallback for hosts without parallel sub-agents,
+  or no sub-agent tool at all): one UC's vertical slice (test → impl → frontend) fully
+  completes before the next UC starts. This is the default behavior of Steps 3–N below.
+
+Both modes share the same RED → GREEN → REFACTOR review discipline — only the
+dispatch fan-out differs.
+
 **Architecture**: You are the **Reviewer/Coordinator**. If the Agent tool is available (Claude Code), spawn **Coder sub-agents** to write code and review their output independently. If the Agent tool is not available (Cursor, CodeBuddy, Cline, etc.), write code yourself then **switch to Reviewer role** and self-review against the checklist before proceeding.
+
+### Parallel dispatch flow (Mode A — host supports concurrent Agent calls)
+
+Use this flow when **all** of the following hold:
+- Host supports launching multiple Agent tool calls in the same turn that execute
+  concurrently (Claude Code's Agent tool, with `isolation: "worktree"` available)
+- `tasks.md` Phase 2 has **2+ UC modules** that are independent (no shared files / no
+  service-level deps — see SKILL.md "When parallel is safe / unsafe")
+- Phase 1 (migrations / scaffolding) is already complete (or absent)
+
+Reference flow (the Orchestrator runs these steps; do not hard-code them as a script):
+
+1. Scan `tasks.md` Phase 2, group `[ ]` / `[~]` tasks by UC module.
+2. For each UC group, list the files it would touch (from task descriptions / spec).
+3. Compute independence: any pair of UCs sharing a touched file → mark as dependent.
+4. Pick the maximal independent subset (cap at **N = 2–5** per turn for rate limits).
+5. **Same turn**, emit N Agent tool calls — one per independent UC. Each call:
+   - `isolation: "worktree"` (per-Coder file isolation)
+   - prompt = the full RED → GREEN → REFACTOR vertical slice for that UC's tasks
+   - Coder is responsible for marking its own tasks `[x]` in tasks.md within its worktree
+6. Await all N. Orchestrator merges worktrees back to main, then runs the **full** test
+   suite (not per-UC) and the Reviewer checklist on the merged result.
+7. If any UC has dependent UCs left (didn't fit the independent subset), recurse: re-scan
+   `tasks.md`, dispatch the next batch.
+8. Loop ends when no `[ ]` / `[~]` Phase 2 tasks remain.
+
+If at any step the independence check finds **<2 independent UCs**, fall back to Mode B
+(sequential) for the remaining tasks and continue with Step 3 below.
+
+> Note: the per-UC Coder prompt should embed the same RED/GREEN/REFACTOR rules as the
+> sequential prompts in Steps 3–N (do not relax test discipline just because dispatch is
+> parallel).
 
 **Steps**
 

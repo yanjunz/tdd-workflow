@@ -7,7 +7,7 @@ description: >
 user-invocable: true
 allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent, TeamCreate"
 metadata:
-  version: "3.10.1"
+  version: "3.11.1"
   compatible: "claude-code, codex, cursor, cline, windsurf, codebuddy, github-copilot"
   hooks: "Installed to .claude/hooks/tdd/ via tdd-workflow init. See .claude/settings.json for registration."
 ---
@@ -226,26 +226,51 @@ Please choose:
 ### Agent Team Design: Coder + Orchestrator separation
 
 ```
-Orchestrator (main Claude session)
-  ├── Assigns tasks to Coder Agent (subagent_type: general-purpose)
-  │     Coder reads: tdd-specs/ + src/ + test/
-  │     Coder writes: implementation + unit tests
+Orchestrator (main agent session)
+  ├── Assigns tasks to Coder sub-agent(s)
+  │     - 1 Coder for sequential mode (default fallback)
+  │     - N parallel Coders for independent UC modules
+  │       (when host supports concurrent Agent tool calls, e.g. Claude Code)
+  │     Coder(s) read: tdd-specs/ + src/ + test/
+  │     Coder(s) write: implementation + unit tests
   │
-  ├── Runs tests independently (Orchestrator executes, not Coder)
-  │     Independent judgment: green / red / regressed
-  │
-  └── For large features with parallel-safe UC modules:
-        Spawn multiple Coder Agents simultaneously (one per UC module)
-        Merge when all complete, run full test suite
+  └── Runs tests independently after Coder(s) finish
+        Independent judgment: green / red / regressed
 ```
 
-**When to use parallel Coders:**
-- Feature has 2+ independent UC modules (no shared state during implementation)
-- Each module has distinct files (no write conflicts)
+`commands/loop.md` supports **two execution modes**, chosen at runtime based on host capability:
 
-**When NOT to parallelize:**
-- Shared DB schema changes (run Phase 1 migrations sequentially first)
-- Dependent business logic (UC-B depends on UC-A's service)
+#### Mode A — Parallel multi-Coder (preferred, when host supports it)
+
+Hosts that allow **multiple Agent/sub-agent tool calls in the same turn to execute
+concurrently** (Claude Code, and any other host with truly-async parallel agents) can
+dispatch one Coder per independent UC module:
+
+- Same-turn spawn N Agent tool calls, one per independent UC
+- Each Coder isolated via `worktree` (no write conflicts on the file system)
+- Orchestrator awaits all, merges, then runs full test suite
+- Recommended N: **2–5** (API rate limits + token budget per agent)
+
+**When parallel is safe:**
+- 2+ UC modules with no shared files and no service-level dependencies
+- Each UC's tests/impl live in distinct directories
+
+**When NOT to parallelize (must serialize):**
+- Shared DB schema changes — run Phase 1 migrations sequentially first, then parallel Phase 2
+- UC-B depends on UC-A's service / module exports — process UC-A first, then UC-B
+
+#### Mode B — Sequential single-Coder (fallback)
+
+Hosts without parallel sub-agent execution (or no sub-agent tool at all — Cursor, CodeBuddy,
+Cline, Codex, GitHub Copilot) fall back to one-UC-at-a-time:
+
+- One UC's vertical slice (test → impl → frontend) fully completes before the next UC starts
+- Same review checkpoints, same test discipline — only the dispatch fan-out is removed
+- This is the supported mode on every host that runs the skill
+
+The Orchestrator picks the mode at the start of `/tdd:loop` based on whether parallel Agent
+dispatch is available; the rest of the loop logic (RED → GREEN → REFACTOR review checkpoints)
+is identical in both modes.
 
 ```
 WHILE tasks.md has ANY [ ] or [~] task (regardless of Phase):
