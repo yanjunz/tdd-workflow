@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.12.0] — 2026-06-03
+
+### Added
+
+- **`/tdd:auto` 一键全流程命令** — 薄编排器，按顺序代理 `/tdd:new` → `/tdd:ff` → `/tdd:loop` → `/tdd:e2e` → `/tdd:done`。**不重写 TDD 逻辑**，只串联现有 5 个 stage 命令。两种模式：
+  - **默认（半自动）** — 阶段间 4 次 `AskUserQuestion` 确认，回车即过；适合生产 feature
+  - **`--yolo`** — 跳过这 4 次确认；Three-Strike 自动选 C（标 `[!]` + 记录原因 + 继续）、任务完整性扫描建议自动接受、Reviewer 连续 2 次驳回 Coder 时标 `[!]` 继续；适合 throwaway 原型 / 探索
+- **自动续跑（resume from incomplete stage）** — `/tdd:auto` 启动时扫描 `tdd-specs/<name>/`，根据 `.harness phase` + `tasks.md` 标记自动定位首个未完成 stage：
+  - 无 `tdd-specs/<name>/` → Stage 1 (`/tdd:new`)
+  - 有 `.harness` + `usecases.draft.md`，无 `tasks.md` → Stage 2 (`/tdd:ff`)
+  - `tasks.md` Phase 1/2 还有 `[ ]` / `[~]` → Stage 3 (`/tdd:loop`)
+  - Phase 1+2 全 `[x]`/`[!]`，Phase 3 还有 `[ ]` / `[~]` → Stage 4 (`/tdd:e2e`)
+  - 全部 `[x]`/`[!]` 但 `phase != deliver` → Stage 5 (`/tdd:done`)
+  - 全部 `[x]`/`[!]` 且 `phase=deliver` → 已交付，提示 `/tdd:notes` / `/tdd:archive`
+- **README (en/zh-CN) 新增 Full-cycle 章节** — 含模式对比表、`--yolo` 不能绕过的安全边界表、`[!]` 任务报告示例、自动续跑表
+
+### Safety floor (`--yolo` 也不能绕过)
+
+`--yolo` 不是"无脑往下冲"——下列**真实失败 / 安全边界**始终触发停止：
+
+- `/tdd:done` 真实失败：编译错误、测试失败、覆盖率不足
+- `/tdd:loop` 中 DB migration 执行失败
+- `/tdd:e2e` 的 Tester Agent 边界（始终 spawn 独立 Tester，禁止 yolo 绕过）
+- `/tdd:new` 的初次需求收集（无用户输入无法决定要做什么）
+- 测试命令找不到 / 项目配置错误
+
+### Resume 是非破坏性的
+
+续跑模式下永远不会：
+- 重跑 `/tdd:new`（会覆盖已收集的需求）
+- 重跑 `/tdd:ff`（会覆盖已生成的 spec 文档）
+- 重跑 `/tdd:done`（已通过的交付门槛不重测）
+
+`/tdd:loop` 和 `/tdd:e2e` 本来就只挑 `[ ]` / `[~]` 任务，重入安全。
+
+`[!]` 任务**不会被自动重试** —— 它们之前已经升级给用户处理过；Stage 3 跳过它们继续，最终报告里仍然完整列出。手动重做用 `/tdd:loop` 直接跑，或先把它们改回 `[ ]`。
+
+### Rationale
+
+之前的工作流是分阶段命令（5 个独立 slash command），用户反馈每次新 feature 都要敲 5 次、且每次启动都要从 `tdd-specs/.current` 找上下文。`/tdd:auto` 给出"一键启动 / 中途接管"两个能力，**同时保留所有现有 stage 命令的硬约束**（Tester Agent 边界、DB migration 验证、Three-Strike Protocol 等）—— 是体验优化，不是规则放松。
+
+`/tdd:continue` 仍然保留作为"手动恢复 / 先看状态再决定"的入口；`/tdd:auto` 是"直接接着干完"的意图。
+
 ## [3.11.1] — 2026-06-02
 
 ### Fixed (correction of 3.11.0)
