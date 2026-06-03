@@ -18,6 +18,7 @@ metadata:
 
 | Command | Purpose |
 |---------|---------|
+| `/tdd:auto <name> [--yolo]` | **One-shot full cycle**: chains new → ff → loop → e2e → done with 4 inter-stage checkpoints. `--yolo` skips checkpoints (real failures still halt). |
 | `/tdd:new <name>` | Start new feature, interactive requirements gathering (collects UC framework) |
 | `/tdd:ff <name>` | **UseCase-first**: generate usecases.md as primary output, then derive requirements → design → tasks from it |
 | `/tdd:change` | **Mid-course requirement change**: analyze impact (UseCase dimension first), sync all 4 docs |

@@ -13,6 +13,7 @@
 ## 目录
 
 - [快速开始](#快速开始)
+- [一键全流程：`/tdd:auto`](#一键全流程tddauto)
 - [安装方式](#安装方式)
 - [CLI 命令参考](#cli-命令参考)
 - [Multi-Agent 架构](#multi-agent-架构)
@@ -44,9 +45,93 @@ npx tdd-workflow@latest init
 /tdd:ff
 # 开始 TDD 循环：
 /tdd:loop
+
+# 或者一键跑完整流程（每阶段间会暂停一次确认）：
+/tdd:auto <name>            # 半自动：阶段间问 4 次 "继续？"
+/tdd:auto <name> --yolo     # 全自动：跳过这 4 次（真实失败仍会停）
 ```
 
 30 秒即可把 TDD 工作流注入项目。
+
+---
+
+## 一键全流程：`/tdd:auto`
+
+如果觉得一个个敲 `/tdd:new` → `/tdd:ff` → `/tdd:loop` → `/tdd:e2e` → `/tdd:done` 太繁琐，用 `/tdd:auto` 串起来。它**不重写 TDD 逻辑**，只是按顺序代理这 5 个命令；**如果项目已经走到一半，会自动从对应阶段续跑**，不会重跑已完成的步骤、也不会覆盖已有 spec 文档。
+
+### 自动续跑（半路接管）
+
+`/tdd:auto <name>` 启动时先扫一眼 `tdd-specs/<name>/`，决定从哪个 stage 接管：
+
+| 项目状态 | 从哪开始跑 |
+|---|---|
+| 没有 `tdd-specs/<name>/` 目录 | Stage 1 (`/tdd:new`) |
+| 有 `.harness` + `usecases.draft.md`，但没 `tasks.md` | Stage 2 (`/tdd:ff`) |
+| `tasks.md` 的 Phase 1/2 还有 `[ ]` / `[~]` | Stage 3 (`/tdd:loop`) |
+| Phase 1+2 全 `[x]`/`[!]`，Phase 3 还有 `[ ]` / `[~]` | Stage 4 (`/tdd:e2e`) |
+| 全部 `[x]`/`[!]`，但 `.harness phase != deliver` | Stage 5 (`/tdd:done`) |
+| 全部 `[x]`/`[!]` 且 `phase=deliver` | 已交付 — 提示 `/tdd:notes` 然后 `/tdd:archive`，停 |
+
+启动时会打印决策：
+
+```
+/tdd:auto: resuming from Stage 3 (/tdd:loop) — Phase 2 has 5 [ ] tasks
+```
+
+> **`[!]` 任务不会被自动重试** —— 它们之前已经升级给用户处理过了。Stage 3 跳过它们继续往下，最终报告里仍然会列出。手动重做用 `/tdd:loop` 直接跑（loop 会捡 `[ ]` / `[~]`），或先把它们改回 `[ ]`。
+
+> **`/tdd:continue` 仍然有用** —— 当你想**手动**从某个阶段恢复、或先看一眼当前状态再决定，用 `/tdd:continue`；`/tdd:auto` 续跑是"直接接着干完"的意图。
+
+### 两种模式
+
+| 模式 | 阶段间确认 | Three-Strike（同测试 3 次失败） | 任务完整性扫描建议 | Reviewer 连续 2 次驳回 Coder |
+|---|---|---|---|---|
+| **默认（半自动）** | 阶段间 4 次 `AskUserQuestion` | 停下问 A/B/C/D | 问用户是否接受 | 上报用户 |
+| **`--yolo`** | 全部跳过 | **自动选 C**：标 `[!]` + 记录原因，继续下个任务 | **自动全部接受** | 标任务为 `[!]`，继续 |
+
+### `--yolo` **不能绕过**的停止点
+
+YOLO 模式不是"无脑往下冲"——下面这些是**真实失败**或**安全边界**，YOLO 也必须停：
+
+| 停止点 | 为什么不能绕 |
+|---|---|
+| `/tdd:done` 的编译错误 / 测试失败 / 覆盖率不足 | 这些就是交付门槛本身，绕过等于让坏代码交付 |
+| `/tdd:loop` 中 DB migration 执行失败 | 真实环境错误，"跳过继续"会让 schema 状态静默漂移 |
+| `/tdd:e2e` 的 Tester Agent 边界 | Tester 与 Coder 信息隔离是为了避免"自己写测试自己骗自己"——YOLO 也始终 spawn Tester |
+| `/tdd:new` 的初次需求收集 | 如果只给了 kebab-case 名字、没给描述，6 维度 Q&A 还得跑——没有"猜你要做什么"的捷径 |
+| 测试命令找不到 / 项目配置错误 | 真实配置错误，不是流程选择 |
+
+### YOLO 模式遗留的 `[!]` 任务
+
+下列情况会在 YOLO 模式下被标 `[!]` 而不是停下来问，但**会在最终报告里完整列出**，绝不静默吞掉：
+
+- 触发 Three-Strike 的任务（附带最后一次失败原因）
+- Reviewer 连续 2 次驳回 Coder 的任务（附带 reviewer 反馈）
+- Phase 3 中 Tester 上报 skip > 3 的 E2E 任务
+
+最终报告示例：
+
+```
+TDD Auto cycle: payment-retry      Mode: yolo
+  Stage 1 (/tdd:new)   — ✓ done
+  Stage 2 (/tdd:ff)    — ✓ 12 tasks generated
+  Stage 3 (/tdd:loop)  — ✓ 9 [x] / 3 [!] / 0 [ ]
+  Stage 4 (/tdd:e2e)   — ✓ 4 passed / 1 failed / 0 skipped
+  Stage 5 (/tdd:done)  — ✗ failed: coverage 72% < 80%
+
+Blocked tasks:
+  - [!] 2.3 unit test: retry on 503 — Three-Strike (last error: timeout assertion)
+  - [!] 2.7 implement: idempotency key — Reviewer 2× reject (over-abstraction)
+  - [!] 3.2 E2E: refund alt path — Tester skipped (env limitation)
+
+Suggested next:
+  - 处理上述 [!] 任务，重跑 /tdd:done
+```
+
+### 选哪个？
+
+- **默认半自动** — **生产 feature 推荐**。4 次确认是 4 次"对方向走偏"的拦截窗口，比走完了再回滚便宜。
+- **`--yolo`** — 一次性原型 / 探索 / 重跑已经规划好的 feature。不建议用于交付工作。
 
 ---
 
@@ -778,6 +863,10 @@ Run /tdd:archive to archive specs.
 ---
 
 ## 斜杠命令详解
+
+### `/tdd:auto <name> [--yolo]` — 一键全流程
+
+按 `new → ff → loop → e2e → done` 顺序代理 5 个命令；默认在阶段间停 4 次确认，`--yolo` 跳过这 4 次。详细模式对比和 **YOLO 不能绕过的停止点**见顶部 [一键全流程：`/tdd:auto`](#一键全流程tddauto) 章节。
 
 ### `/tdd:new <name>` — 启动新功能
 
