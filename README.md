@@ -31,9 +31,13 @@ npx tdd-workflow@latest init
 # Then in your AI assistant (Claude Code, Cursor, etc.):
 /tdd:new        # interactive requirement gathering
 /tdd:ff         # generate spec docs (usecases / requirements / design / tasks)
-/tdd:loop      # run TDD red→green→refactor across all tasks
+/tdd:loop       # run TDD red→green→refactor across all tasks
 /tdd:e2e        # derive E2E tests from usecases.md
 /tdd:done       # multi-stage delivery checklist
+
+# Or in one shot (semi-auto, with checkpoints between stages):
+/tdd:auto <name>            # chains all 5 stages, asks once between each
+/tdd:auto <name> --yolo     # skip inter-stage prompts (real failures still halt)
 ```
 
 30 seconds to inject the workflow into your project.
@@ -80,6 +84,7 @@ tdd-workflow update --delivery commands   # only refresh slash commands
 
 | Command | Purpose |
 |---|---|
+| `/tdd:auto <name> [--yolo]` | **One-shot full cycle** — chains `new → ff → loop → e2e → done` with 4 inter-stage checkpoints. `--yolo` skips checkpoints. See [Full-cycle command](#full-cycle-command--tddauto) below for what `--yolo` cannot bypass. |
 | `/tdd:new` | Interactive requirement gathering, scoping, and clarification |
 | `/tdd:ff` | Fast-forward: generate `usecases.md` / `requirements.md` / `design.md` / `tasks.md` |
 | `/tdd:change` | Change Impact Assessment for spec edits to in-flight features |
@@ -94,6 +99,51 @@ tdd-workflow update --delivery commands   # only refresh slash commands
 | `/tdd:cleanup` | Cleanup checklist (logs, dead code, TODOs) before delivery |
 | `/tdd:archive` | Archive a completed feature spec |
 | `/tdd:continue` | Resume in-progress work after `/clear` or new session |
+
+### Full-cycle command — `/tdd:auto`
+
+`/tdd:auto` is a **thin orchestrator** — it doesn't re-implement TDD logic, it just delegates to the 5 stage commands in order. **If the project is already partway through, it auto-detects where to resume** — it never re-runs completed stages or overwrites existing spec docs.
+
+**Resume detection** — at startup `/tdd:auto` scans `tdd-specs/<NAME>/` and picks the first incomplete stage:
+
+| Project state | Resume from |
+|---|---|
+| No `tdd-specs/<NAME>/` directory | Stage 1 (`/tdd:new`) |
+| `.harness` + `usecases.draft.md` exist, no `tasks.md` | Stage 2 (`/tdd:ff`) |
+| `tasks.md` has any `[ ]` / `[~]` in Phase 1 or 2 | Stage 3 (`/tdd:loop`) |
+| Phase 1+2 fully done (`[x]` or `[!]`), Phase 3 has any `[ ]` / `[~]` | Stage 4 (`/tdd:e2e`) |
+| All phases done, `.harness` `phase != deliver` | Stage 5 (`/tdd:done`) |
+| All phases done AND `phase=deliver` | Already shipped — suggest `/tdd:notes` / `/tdd:archive`, stop |
+
+`[!]` tasks are **not auto-retried** — they were already escalated to the user. Stage 3 skips them and the final report still surfaces them. To redo them manually, edit them back to `[ ]` or run `/tdd:loop` directly.
+
+`/tdd:continue` remains the right tool when you want to **manually** resume from a specific phase or inspect state first; `/tdd:auto` resume is for "just keep going" intent.
+
+### Modes
+
+| Mode | Inter-stage prompts | Three-Strike | Completeness scan | Reviewer 2-strike |
+|---|---|---|---|---|
+| Default (semi-auto) | 4 × `AskUserQuestion` between stages | Halt + ask A/B/C/D | Ask user to accept | Escalate to user |
+| `--yolo` | Skipped | **Auto-pick C**: mark `[!]`, log reason, continue | **Auto-accept** all suggestions | Mark task `[!]`, continue |
+
+**`--yolo` does NOT bypass** (these always halt the cycle, even in YOLO):
+
+| Stop reason | Why it's not bypassable |
+|---|---|
+| Real test failures, compile errors, coverage gap in `/tdd:done` | These are the actual delivery gates — bypassing them would let broken code ship |
+| DB migration failure during `/tdd:loop` | Real environment error; "skip and continue" silently drops the schema |
+| Tester Agent boundary in `/tdd:e2e` | The whole point of the boundary is to catch the bias of "the writer also writes the test"; YOLO cannot remove it |
+| Initial requirements intake in `/tdd:new` | If `<name>` is just a kebab-case name, the 6-dimension Q&A still runs — there's no shortcut for "knowing what to build" |
+| Test command not found / project misconfigured | Real config error, not a process choice |
+
+**What gets carried forward as `[!]` blocked tasks** in YOLO mode (these surface in the final report, never silently dropped):
+- Tasks where Three-Strike triggered (with last failure reason)
+- Tasks where Reviewer rejected Coder output 2× in a row (with feedback)
+- Phase 3 E2E tasks where Tester reported >3 skips
+
+**When to use which:**
+- Default (semi-auto) — **recommended for production features**. The 4 prompts are 4 chances to catch a misaligned spec or wrong direction before it cascades.
+- `--yolo` — throwaway prototypes, exploration, or replaying a feature you've already specced once. Not recommended for delivery work.
 
 ---
 
