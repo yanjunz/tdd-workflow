@@ -144,17 +144,20 @@ function mergeHooksIntoSettings(settingsPath: string, hooksDir: string): void {
   }
   if (!settings.hooks) settings.hooks = {};
 
+  // Use $CLAUDE_PROJECT_DIR so hooks resolve regardless of the cwd Claude Code
+  // launches them from (subdirs, worktrees) — relative paths break in those cases.
+  const prefix = `$CLAUDE_PROJECT_DIR/${hooksDir}`;
   const tddHooks: Record<string, any[]> = {
     PreToolUse: [
-      { matcher: 'Write|Edit', hooks: [{ type: 'command', command: `${hooksDir}/pre-write-edit.sh` }] },
-      { matcher: 'Bash', hooks: [{ type: 'command', command: `${hooksDir}/pre-bash.sh` }] },
+      { matcher: 'Write|Edit', hooks: [{ type: 'command', command: `${prefix}/pre-write-edit.sh` }] },
+      { matcher: 'Bash', hooks: [{ type: 'command', command: `${prefix}/pre-bash.sh` }] },
     ],
     PostToolUse: [
-      { matcher: 'Write|Edit', hooks: [{ type: 'command', command: `${hooksDir}/post-write-edit.sh` }] },
-      { matcher: 'Bash', hooks: [{ type: 'command', command: `${hooksDir}/post-bash.sh` }] },
+      { matcher: 'Write|Edit', hooks: [{ type: 'command', command: `${prefix}/post-write-edit.sh` }] },
+      { matcher: 'Bash', hooks: [{ type: 'command', command: `${prefix}/post-bash.sh` }] },
     ],
     UserPromptSubmit: [
-      { hooks: [{ type: 'command', command: `${hooksDir}/user-prompt-submit.sh` }] },
+      { hooks: [{ type: 'command', command: `${prefix}/user-prompt-submit.sh` }] },
     ],
   };
 

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.12.1] — 2026-06-04
+
+### Fixed
+
+- **`installer.ts` 写入 `.claude/settings.json` 时 hook 命令使用相对路径** — 之前生成 `".claude/hooks/tdd/xxx.sh"`，Claude Code 在非项目根 cwd（子目录、worktree、某些 tool call 触发点）启动 hook 时会报 `No such file or directory`，后果是 `UserPromptSubmit` hook 失败 → harness 状态（phase / task / strikes / `auto_mode`）无法注入到 LLM context，LLM 不再知道自己处于 TDD 状态机的哪个阶段，等价于 hook 完全不存在。本版改为 `"$CLAUDE_PROJECT_DIR/.claude/hooks/tdd/xxx.sh"`，Claude Code 注入 `$CLAUDE_PROJECT_DIR` 环境变量后 shell 展开为项目根的绝对路径
+- **既有项目修复路径**：`npx tdd-workflow@3.12.1 update` 会自动清理 `.claude/settings.json` 中的旧相对路径条目（旧的 filter 按 `hooks/tdd/` 子串匹配，新旧路径都包含此子串，清理一致）并写入新的 `$CLAUDE_PROJECT_DIR` 版本。无需手工编辑 settings
+
+### Rationale
+
+3.12.0 发布后用户在实战中触发 `UserPromptSubmit hook error: ... No such file or directory`，hook 本身存在且可执行，只是 Claude Code 启动它时的 cwd 不在项目根。这暴露了 installer 的相对路径假设——Claude Code 文档明确建议 hook command 用 `$CLAUDE_PROJECT_DIR` 前缀来避免 cwd 漂移问题。本版做最小修复
+
 ## [3.12.0] — 2026-06-03
 
 ### Added
