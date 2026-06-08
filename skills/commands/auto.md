@@ -18,6 +18,18 @@ Run the full TDD cycle in one command, with confirmation checkpoints between sta
 | Default (semi-auto) | 4 × `AskUserQuestion` | Halt + ask A/B/C/D | Ask user to accept | Always halt |
 | `--yolo` | Skipped | Auto-pick C: mark `[!]`, continue | Auto-accept all suggestions | Always halt |
 
+**`.harness yolo=1` persistence**
+
+`--yolo` is a flag at first-turn, but the loop runs over many turns — context can be compacted, the user can type "继续". So `/tdd:auto` writes `yolo=1` into `tdd-specs/<NAME>/.harness` and the `user-prompt-submit.sh` hook injects `| Mode: yolo` into every subsequent prompt. That's how main agent stays aware of yolo across turns.
+
+**When you see `Mode: yolo` in the `[tdd-harness]` line, follow these 3 rules** (in addition to the table above):
+
+1. **No mid-loop checkpoint** — finishing one UC's vertical slice is NOT a stop point. Do **not** write a "本轮 /tdd:loop 完成报告" and ask "commit or continue UC-02?". Just proceed straight to the next UC. Issue a single completion report only when all Phase 1+2 tasks are `[x]`.
+2. **Three-Strike → auto-pick C** — when a test fails 3× in a row, mark the task `[!]` with the last failure message as the reason, log it, continue to the next task. Do not present the A/B/C/D dialog.
+3. **`/tdd:done` real failures still halt** — coverage gap, compile error, regression red, missing checklist item are NOT bypassable. yolo only suppresses *advisory* stops, never delivery gates.
+
+To exit yolo mid-flow: delete the `yolo=1` line from `.harness` manually, or run `/tdd:continue` (which does not propagate yolo forward).
+
 **Steps**
 
 1. **Parse args & detect resume point**
@@ -48,6 +60,17 @@ Run the full TDD cycle in one command, with confirmation checkpoints between sta
 
    **`<NAME>` resolution when omitted**: if user runs `/tdd:auto` (no name), check `tdd-specs/.current` first. If set, use that name and resume. If not set, fall through to Stage 1's interactive intake.
 
+   **Persist YOLO to `.harness`** — if `YOLO=1` and `tdd-specs/<NAME>/.harness` already exists (i.e. resume from Stage 2+):
+
+   ```bash
+   H="tdd-specs/<NAME>/.harness"
+   grep -q '^yolo=' "$H" \
+     && sed -i'' 's/^yolo=.*/yolo=1/' "$H" \
+     || echo 'yolo=1' >> "$H"
+   ```
+
+   If resume from Stage 1 (no `.harness` yet), this write happens at the end of Stage 1 instead.
+
 2. **Stage 1 — delegate to `/tdd:new`** (requirements gathering)
 
    **Skip if**: `tdd-specs/<NAME>/.harness` already exists (resume detection placed us past Stage 1).
@@ -57,6 +80,12 @@ Run the full TDD cycle in one command, with confirmation checkpoints between sta
    - If `<NAME>` is empty or just a kebab name: still ask the 6-dimension questions — there's no shortcut
 
    Output: `tdd-specs/<NAME>/.harness` + `usecases.draft.md`
+
+   **Persist YOLO to `.harness`** — if `YOLO=1`:
+
+   ```bash
+   echo 'yolo=1' >> "tdd-specs/<NAME>/.harness"
+   ```
 
    **Checkpoint** (skip if `--yolo`):
 

@@ -30,8 +30,10 @@ fi
 if [ -f "tdd-specs/$SPEC/.harness" ]; then
   # shellcheck disable=SC1090
   . "tdd-specs/$SPEC/.harness" 2>/dev/null || true
-  echo "[tdd-harness] Phase: ${phase:-idle} | Task: ${task:-none} | Strikes: ${strikes:-0}"
-  log "spec=$SPEC phase=${phase:-idle} task=${task:-none} strikes=${strikes:-0}"
+  MODE_LINE=""
+  [ "${yolo:-0}" = "1" ] && MODE_LINE=" | Mode: yolo"
+  echo "[tdd-harness] Phase: ${phase:-idle} | Task: ${task:-none} | Strikes: ${strikes:-0}${MODE_LINE}"
+  log "spec=$SPEC phase=${phase:-idle} task=${task:-none} strikes=${strikes:-0} yolo=${yolo:-0}"
 else
   log "spec=$SPEC (no .harness file)"
 fi

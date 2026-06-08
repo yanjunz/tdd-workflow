@@ -7,7 +7,7 @@ description: >
 user-invocable: true
 allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent, TeamCreate"
 metadata:
-  version: "3.12.1"
+  version: "3.13.0"
   compatible: "claude-code, codex, cursor, cline, windsurf, codebuddy, github-copilot"
   hooks: "Installed to .claude/hooks/tdd/ via tdd-workflow init. See .claude/settings.json for registration."
 ---
@@ -729,6 +729,27 @@ tdd-specs/
 | `- [~]` | In progress (RED written, GREEN incomplete) |
 | `- [x]` | Completed |
 | `- [!]` | Blocked (Three-Strike Protocol, awaiting decision) |
+
+## YOLO Mode (`/tdd:auto --yolo`)
+
+When `.harness` contains `yolo=1` (and `user-prompt-submit.sh` shows `Mode: yolo` in the harness line), the main agent is in a `/tdd:auto --yolo` flow. Behavior changes vs default:
+
+| Default behavior | YOLO behavior |
+|---|---|
+| Finish one UC's vertical slice → write 本轮报告 → ask "commit or continue UC-N+1?" | **Don't checkpoint per UC**. Single completion report only when ALL Phase 1+2 tasks are `[x]`. Proceed straight to next UC. |
+| Three-Strike (3× same test fail) → halt, ask user A/B/C/D | **Auto-pick C**: mark task `[!]` with last failure as reason, log it, continue to next task |
+| Task-completeness scan finds gaps → ask user to accept | **Auto-accept** all suggestions, append tasks |
+| Reviewer rejects Coder output 2× in a row → escalate to user | Mark task `[!]` with reviewer feedback, continue |
+
+YOLO does **NOT** change:
+- `/tdd:done` real failures (compile / test / coverage / regression / E2E) → always halt
+- DB migration failures → always halt
+- Tester Agent boundary in `/tdd:e2e` → main agent **must** still spawn Tester (yolo doesn't justify writing tests yourself)
+- Initial requirements intake in `/tdd:new` → must still run if no `usecases.draft.md` exists
+
+User exits yolo mid-flow by deleting the `yolo=1` line from `.harness`, or by running `/tdd:continue` (which doesn't carry yolo forward). Each spec's `.harness` is feature-isolated, so yolo on feature-A never leaks into feature-B.
+
+---
 
 ## Mandatory Issues Lookup Timing
 
