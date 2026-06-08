@@ -100,6 +100,20 @@ write_harness green
 j='{"cwd":"'"$PWD"'","hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"'"$SRC_FILE"'","old_string":"a","new_string":"b"}}'
 check "GREEN + src file → allow" 0 "$(run_hook "$H/pre-write-edit.sh" "$j")"
 
+# Phase=e2e: main agent must spawn Tester via Task tool (Stage 4 protocol);
+# direct writes outside tdd-specs/ are blocked. Sub-agent (agent_id set, i.e.
+# the Tester) is allowed to write tests.
+write_harness e2e
+j='{"cwd":"'"$PWD"'","hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"'"$SRC_FILE"'","content":"x"}}'
+check "E2E + main agent + src file → block(2)" 2 "$(run_hook "$H/pre-write-edit.sh" "$j")"
+
+j='{"cwd":"'"$PWD"'","hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"'"$TEST_FILE"'","content":"x"},"agent_id":"sub-123","agent_type":"general-purpose"}'
+check "E2E + sub-agent (agent_id set) → allow" 0 "$(run_hook "$H/pre-write-edit.sh" "$j")"
+
+TDD_SPEC_FILE="$PWD/tdd-specs/_verify_test/tasks.md"
+j='{"cwd":"'"$PWD"'","hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"'"$TDD_SPEC_FILE"'","old_string":"a","new_string":"b"}}'
+check "E2E + main agent + tdd-specs/ → allow" 0 "$(run_hook "$H/pre-write-edit.sh" "$j")"
+
 # Regression: .current with leading/trailing newlines must still resolve to
 # the correct spec (bug fixed in 2.4.4 — previously the hook silently allowed
 # everything because "\nfoo" / "foo\n" couldn't locate the .harness file).

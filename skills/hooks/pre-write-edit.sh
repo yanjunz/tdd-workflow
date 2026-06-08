@@ -55,5 +55,29 @@ if [ "${phase:-}" = "red" ]; then
   exit 2
 fi
 
+if [ "${phase:-}" = "e2e" ]; then
+  # In Stage 4, main agent MUST spawn Tester via Task tool. Tester (sub-agent)
+  # has agent_id set; main agent does not. Block main-agent direct writes
+  # outside tdd-specs/ to enforce the spawn structurally — file-level docs
+  # and self-checks (auto.md / e2e.md / SKILL.md) are advisory and were
+  # empirically ignored when context was cached (see v3.13.0 yunyin run:
+  # 0 Task calls despite the rule being installed).
+  AGENT_ID=$(printf '%s' "$INPUT" | jq -r '.agent_id // empty' 2>/dev/null)
+  if [ -n "$AGENT_ID" ]; then
+    log "E2E + sub-agent (agent_id=$AGENT_ID type=$(printf '%s' "$INPUT" | jq -r '.agent_type // "?"' 2>/dev/null)) → allow (Tester writes)"
+    exit 0
+  fi
+  # Main agent updating tasks.md / report / harness etc. is legitimate
+  if echo "$FILE" | grep -q 'tdd-specs/'; then
+    log "E2E + main agent + tdd-specs/ → allow (Orchestrator)"
+    exit 0
+  fi
+  log "E2E + main agent + non-spec file ($FILE) → BLOCK(2)"
+  echo "BLOCKED: phase=e2e — main agent must spawn Tester via Task tool, not Write/Edit files directly.
+File: $FILE
+Hint: in /tdd:auto Stage 4, call the Agent tool (subagent_type='general-purpose') to spawn Tester. See .claude/skills/tdd-workflow/commands/auto.md Stage 4 for the exact prompt template." >&2
+  exit 2
+fi
+
 log "phase=${phase:-?} → allow"
 exit 0

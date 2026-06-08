@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 - **`SKILL.md` 新增 "YOLO Mode" 章节** — 列出 yolo 模式下 main agent 的 4 条行为变化（不开 UC checkpoint、Three-Strike 自动选 C、完整性扫描自动接受、Reviewer 2-strike 标 [!]）和 4 条**绝不绕过**的边界（done 真实失败、DB migration、Tester Agent 边界、初次需求收集）
 - **`e2e.md` 顶部 MANDATORY 自检** — 文件第一行就是"main agent 进 e2e.md 必须先 Task spawn Tester、停下不继续读"。这是手动 `/tdd:e2e` 路径的 advisory 层防御。修复实测中 main agent 顺着 Steps 1-N 自己写 e2e 测试、违反 Tester 信息边界的问题（v3.12.x 实测 0 次 Task 调用、73 个 e2e 测试由 main agent 自写、53 次读 src 实现）
 - **`auto.md` Stage 4 改为 Orchestrator 主动 Task spawn**（结构性修复，非 advisory）— 之前 Stage 4 是 "delegate to /tdd:e2e"，依赖 main agent 读 e2e.md 后自检自觉 spawn——实测不可靠。本版 Stage 4 直接由 auto.md 调用 Task 工具发起 Tester sub-agent，main agent 在 Stage 4 唯一动作是这次 Task 调用本身，**不读 e2e.md**。Tester 在自己的 context 里读 e2e.md（顶部自检识别"我是 sub-agent"不再嵌套 spawn），执行 Steps 1-N，报告回 Orchestrator。双层防御：auto 流程走结构性 Stage 4 spawn；手动 `/tdd:e2e` 走 e2e.md 顶部 advisory 自检
+- **`pre-write-edit.sh` 加 phase=e2e 拦截（hook-enforced，不再 advisory）** — 上面 Stage 4 改造仍是 advisory（依赖 main agent 读 auto.md），实测 v3.13.0 第一次 yunyin 跑里 main agent 在长 session 里没重读 auto.md、Stage 4 没生效（0 次 Task 调用）。本拦截器靠数据层硬约束：main agent（hook input 里没 `agent_id` 字段）在 `phase=e2e` 时 Write/Edit 任何 `tdd-specs/` 之外的文件 → exit 2 阻止 + 提示用 Task 工具 spawn Tester。Tester sub-agent（hook input 含 `agent_id`）写测试文件正常允许。Orchestrator 更新 `tdd-specs/<name>/tasks.md`、写报告等也允许。`agent_id` 字段是 Claude Code hook 文档化的可靠 sub-agent 识别依据
+- **hook 测试套件加 3 个 e2e 拦截 case** — `test/hooks-verify.sh` 新增：main agent + e2e + 写 src → block(2)；sub-agent (agent_id 设置) + e2e + 写测试 → allow；main agent + e2e + 写 tdd-specs/ → allow。共 21 个 hook 测试全绿
 
 ### Changed
 

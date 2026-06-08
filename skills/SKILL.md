@@ -744,7 +744,7 @@ When `.harness` contains `yolo=1` (and `user-prompt-submit.sh` shows `Mode: yolo
 YOLO does **NOT** change:
 - `/tdd:done` real failures (compile / test / coverage / regression / E2E) → always halt
 - DB migration failures → always halt
-- Tester Agent boundary in `/tdd:e2e` → main agent **must** still spawn Tester (yolo doesn't justify writing tests yourself)
+- Tester Agent boundary in `/tdd:e2e` → main agent **must** spawn Tester via Task tool. **As of v3.13.0 this is enforced by the `pre-write-edit.sh` hook**: while `phase=e2e`, any Write/Edit by main agent (i.e. `agent_id` not in hook input) outside `tdd-specs/` returns exit 2. Sub-agent writes (Tester running with `agent_id` set) are allowed. So the rule is no longer advisory — main agent literally cannot write E2E tests directly.
 - Initial requirements intake in `/tdd:new` → must still run if no `usecases.draft.md` exists
 
 User exits yolo mid-flow by deleting the `yolo=1` line from `.harness`, or by running `/tdd:continue` (which doesn't carry yolo forward). Each spec's `.harness` is feature-isolated, so yolo on feature-A never leaks into feature-B.
