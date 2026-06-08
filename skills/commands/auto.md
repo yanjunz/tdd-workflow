@@ -143,15 +143,78 @@ To exit yolo mid-flow: delete the `yolo=1` line from `.harness` manually, or run
      [C] Stop here
    ```
 
-5. **Stage 4 — delegate to `/tdd:e2e`**
+5. **Stage 4 — Orchestrator spawns Tester directly (do NOT delegate via main agent reading e2e.md)**
 
    **Skip if**: `tasks.md` Phase 3 (E2E) is all `[x]` or `[!]` (no `[ ]` / `[~]` left).
 
-   Run `/tdd:e2e` exactly as documented. **`--yolo` does NOT bypass the Tester Agent requirement** — that boundary exists to catch confirmation bias and is the whole reason this stage isn't a one-liner. Skipping it would defeat the purpose.
+   **Why Stage 4 is different from Stages 1-3**: Stages 1-3 delegate to their stage commands and let main agent execute the steps. Stage 4 does **NOT**. Empirically (v3.12.x yunyin transcript: 0 Task calls, 73 e2e files self-written, 53 src_dirs reads), main agent reads e2e.md and writes the tests itself, violating the Tester information boundary. Stage 4 instead **fans out a Task call from the Orchestrator** so the Tester runs in its own sub-agent context, with no path for main agent to "just write the tests".
 
-   YOLO-specific behavior inside `/tdd:e2e`:
-   - Tester Agent always spawned (mandatory, no YOLO bypass)
-   - If Tester reports `N skipped` with skip count > 3 → in default mode escalate to user; in YOLO mode mark Phase 3 tasks `[!]` and continue (per the existing Phase 3 enforcement checklist)
+   **Steps:**
+
+   a. Mark phase:
+      ```bash
+      sed -i '' 's/phase=.*/phase=e2e/' "tdd-specs/$NAME/.harness"
+      ```
+
+   b. **Call the Task tool** (this is the main agent's only direct action in Stage 4 — do NOT read e2e.md yourself):
+
+      ```
+      Agent(
+        subagent_type: "general-purpose",
+        isolation: "worktree",   # if host supports it (Claude Code); omit otherwise
+        prompt: """
+          You are the Tester Agent for /tdd:auto Stage 4 on feature <NAME>.
+
+          1. Read the project-installed e2e.md, e.g.
+             .claude/skills/tdd-workflow/commands/e2e.md
+             (or .cursor/... / .codex/... per host). Execute its Steps 1-N.
+
+          2. The MANDATORY FIRST STEP self-check at the top of e2e.md asks
+             "are you a Task sub-agent?" — YES, you are. Do NOT nest-spawn
+             another Tester; you ARE the Tester. Proceed to Steps 1-N.
+
+          3. Information boundary you MUST enforce on yourself:
+             ALLOWED:
+               - tdd-specs/<NAME>/usecases.md
+               - tdd-specs/<NAME>/requirements.md
+               - API route definitions / interface signatures (route files only)
+               - DB schema files (table structure only)
+               - Existing E2E test files (helpers / project structure)
+               - tdd-specs/.verify/project.md
+             FORBIDDEN (paths from paths.src_dirs in project.md):
+               - Any implementation code under src_dirs
+               - Any unit test files from Phase 2
+             If you feel you must read implementation to understand behavior,
+             STOP — the spec is incomplete; report what's unclear instead of
+             reading the implementation.
+
+          4. If `.harness` shows `yolo=1`, follow YOLO Mode rules from
+             SKILL.md (Three-Strike → mark task [!] and continue, no
+             checkpoint per UC, etc.).
+
+          5. Final report MUST contain:
+             - <N passed> / <N failed> / <N skipped> (with skip reasons + UC reference)
+             - For each failure: test name, error, file:line
+             - Files written/modified
+             - Explicit line: "I did not read any path under paths.src_dirs"
+        """
+      )
+      ```
+
+   c. When Tester returns, run the **Phase 3 Enforcement Checklist** (Orchestrator side):
+
+      | Check | Pass condition |
+      |-------|---------------|
+      | Tester was called | Task tool call appears in this turn's log |
+      | Skip count ≤ 3 | From Tester report; default mode escalates, yolo marks `[!]` |
+      | No src_dirs reads | Tester's "I did not read..." line is present and credible (spot-check one written test if doubtful) |
+      | Tests start from real entry points | Spot-check 1 test file Tester wrote |
+
+      Any check failing → mark Phase 3 tasks `[!]` with reason; do not silently pass.
+
+   YOLO-specific behavior:
+   - Skip count > 3 → mark `[!]`, continue (don't escalate)
+   - Test failures → mark each `[!]` with error, continue (do NOT re-spawn Tester unless user explicitly asks)
 
    **Checkpoint** (skip if `--yolo`):
 
@@ -159,9 +222,11 @@ To exit yolo mid-flow: delete the `yolo=1` line from `.harness` manually, or run
    AskUserQuestion:
      "E2E: N passed / N failed / N skipped. Continue?"
      [A] Continue to /tdd:done
-     [B] Fix failures first (re-spawn Tester via /tdd:e2e)
+     [B] Fix failures first (re-spawn Tester)
      [C] Stop here
    ```
+
+   Manual `/tdd:e2e` (user invokes it directly without /tdd:auto) still falls back to the e2e.md MANDATORY FIRST STEP self-check — that path is the advisory layer for non-auto flows. Stage 4 here is the structural layer for /tdd:auto.
 
 6. **Stage 5 — delegate to `/tdd:done`** (4-stage delivery verification)
 

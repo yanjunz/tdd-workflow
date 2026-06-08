@@ -8,7 +8,8 @@ All notable changes to this project will be documented in this file.
 
 - **`.harness yolo=1` 字段** — `/tdd:auto --yolo` 启动时把 yolo 状态持久化到 `tdd-specs/<name>/.harness`，让 main agent 跨 turn 保持 yolo 意识。`user-prompt-submit.sh` hook 在每个 user prompt 注入 `[tdd-harness] ... | Mode: yolo`，context 压缩 / 用户回"继续"后状态都不丢
 - **`SKILL.md` 新增 "YOLO Mode" 章节** — 列出 yolo 模式下 main agent 的 4 条行为变化（不开 UC checkpoint、Three-Strike 自动选 C、完整性扫描自动接受、Reviewer 2-strike 标 [!]）和 4 条**绝不绕过**的边界（done 真实失败、DB migration、Tester Agent 边界、初次需求收集）
-- **`e2e.md` 顶部 MANDATORY 自检** — 文件第一行就是"main agent 进 e2e.md 必须先 Task spawn Tester、停下不继续读"。修复实测中 main agent 顺着 Steps 1-N 自己写 e2e 测试、违反 Tester 信息边界的问题（v3.12.x 实测 0 次 Task 调用、73 个 e2e 测试由 main agent 自写、53 次读 src 实现）
+- **`e2e.md` 顶部 MANDATORY 自检** — 文件第一行就是"main agent 进 e2e.md 必须先 Task spawn Tester、停下不继续读"。这是手动 `/tdd:e2e` 路径的 advisory 层防御。修复实测中 main agent 顺着 Steps 1-N 自己写 e2e 测试、违反 Tester 信息边界的问题（v3.12.x 实测 0 次 Task 调用、73 个 e2e 测试由 main agent 自写、53 次读 src 实现）
+- **`auto.md` Stage 4 改为 Orchestrator 主动 Task spawn**（结构性修复，非 advisory）— 之前 Stage 4 是 "delegate to /tdd:e2e"，依赖 main agent 读 e2e.md 后自检自觉 spawn——实测不可靠。本版 Stage 4 直接由 auto.md 调用 Task 工具发起 Tester sub-agent，main agent 在 Stage 4 唯一动作是这次 Task 调用本身，**不读 e2e.md**。Tester 在自己的 context 里读 e2e.md（顶部自检识别"我是 sub-agent"不再嵌套 spawn），执行 Steps 1-N，报告回 Orchestrator。双层防御：auto 流程走结构性 Stage 4 spawn；手动 `/tdd:e2e` 走 e2e.md 顶部 advisory 自检
 
 ### Changed
 
