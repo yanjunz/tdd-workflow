@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.13.0] — 2026-06-08
+
+### Added
+
+- **`.harness yolo=1` 字段** — `/tdd:auto --yolo` 启动时把 yolo 状态持久化到 `tdd-specs/<name>/.harness`，让 main agent 跨 turn 保持 yolo 意识。`user-prompt-submit.sh` hook 在每个 user prompt 注入 `[tdd-harness] ... | Mode: yolo`，context 压缩 / 用户回"继续"后状态都不丢
+- **`SKILL.md` 新增 "YOLO Mode" 章节** — 列出 yolo 模式下 main agent 的 4 条行为变化（不开 UC checkpoint、Three-Strike 自动选 C、完整性扫描自动接受、Reviewer 2-strike 标 [!]）和 4 条**绝不绕过**的边界（done 真实失败、DB migration、Tester Agent 边界、初次需求收集）
+- **`e2e.md` 顶部 MANDATORY 自检** — 文件第一行就是"main agent 进 e2e.md 必须先 Task spawn Tester、停下不继续读"。这是手动 `/tdd:e2e` 路径的 advisory 层防御。修复实测中 main agent 顺着 Steps 1-N 自己写 e2e 测试、违反 Tester 信息边界的问题（v3.12.x 实测 0 次 Task 调用、73 个 e2e 测试由 main agent 自写、53 次读 src 实现）
+- **`auto.md` Stage 4 改为 Orchestrator 主动 Task spawn**（结构性修复，非 advisory）— 之前 Stage 4 是 "delegate to /tdd:e2e"，依赖 main agent 读 e2e.md 后自检自觉 spawn——实测不可靠。本版 Stage 4 直接由 auto.md 调用 Task 工具发起 Tester sub-agent，main agent 在 Stage 4 唯一动作是这次 Task 调用本身，**不读 e2e.md**。Tester 在自己的 context 里读 e2e.md（顶部自检识别"我是 sub-agent"不再嵌套 spawn），执行 Steps 1-N，报告回 Orchestrator。双层防御：auto 流程走结构性 Stage 4 spawn；手动 `/tdd:e2e` 走 e2e.md 顶部 advisory 自检
+
+### Changed
+
+- **`auto.md`** — Step 1 末尾 + Stage 1 末尾两处 sed 写 `yolo=1` 到 `.harness`；顶部新增 "Behavior when `Mode: yolo`" 段，列 3 条 main agent 行为规则（不 checkpoint / 自动 C / done 仍硬停）
+- **`user-prompt-submit.sh`** — 注入 `[tdd-harness]` 行末追加 `| Mode: yolo`（仅当 `yolo=1` 时）
+
+### Why this matters
+
+3.12.x 实测发现 `/tdd:auto --yolo` 经常半路停下来写"本轮 /tdd:loop 完成报告"问用户 "commit or continue?"。根因是 `--yolo` 是命令参数、不是持久状态——首 turn 之后 main agent 看到的就是普通 prompt，"是不是 yolo"上下文丢失，模型回到默认本能"完成一个 UC 就 checkpoint"。
+
+修复需要 yolo 状态可被注入到每个 turn 的 context。最小改动：`.harness` 加 1 字段（`yolo=1`），hook 多注入 1 行。`phase` 字段值域不动（仍是 red/green/refactor/e2e/deliver/requirements），yolo 是横跨 phase 的 mode 标记。
+
+### Compatibility
+
+向后兼容：未设置 `yolo=1` 的旧 `.harness` 行为完全不变。Hook 看到 `yolo=0` 或字段不存在都按 default 模式处理。`npx tdd-workflow@3.13.0 update` 自动更新 hook 脚本与 skill 文件，旧项目立即生效
+
 ## [3.12.1] — 2026-06-04
 
 ### Fixed

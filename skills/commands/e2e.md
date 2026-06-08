@@ -7,6 +7,22 @@ tags: [tdd, e2e, usecase]
 
 Phase 3: E2E 验收测试。**E2E 用例不再凭空发明，而是从 `usecases.md` 自动派生**——每个 UC 的每条路径对应一个 E2E。
 
+---
+
+**MANDATORY FIRST STEP — 自检（在执行任何 Step 之前）**
+
+读 `tdd-specs/$SPEC/.harness`。如果你正在读这份 e2e.md 且**你不是 Task 工具调起的 sub-agent**：
+
+1. **立即用 Task 工具 spawn Tester Agent** —— prompt 模板见 SKILL.md 的 `MANDATORY FIRST STEP — Spawn Tester Agent` 段（包含 ALLOWED / FORBIDDEN 路径列表）
+2. **停下，不要再读这份 e2e.md 后面的 Steps** —— Steps 1-N 是 Tester 该执行的内容，不是 main agent
+3. 等 Tester 返回报告后再做 Phase 3 的 Orchestrator 检查
+
+**唯一例外**（main agent 自己写）：feature 仅 1 UC 且无任何备选路径。这时必须在最终报告里明文写出：「I am writing this E2E as main agent. Feature has exactly 1 UC, no alternate paths. I have not read any src_dirs implementation since /tdd:e2e started.」
+
+**为什么这条规则放在文件最顶部**：实测中 main agent 会顺着 e2e.md 的 Step 1-5 自己写完测试，违反 Tester 信息边界。把"先自检"写在所有 Step 之前，确保读到这份文件的 main agent 第一动作是 spawn 而不是动手。
+
+---
+
 **Steps**
 
 ### 1. 检测项目 E2E 框架 + 设置 harness phase
