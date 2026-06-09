@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.13.1] — 2026-06-09
+
+### Added
+
+- **`SKILL.md` 新增 `## Test Output Frugality` 段** — 列出 jest/vitest/pytest/go test/cargo/mocha/maven 各自的 silent 默认 flag + 失败时只 re-run 失败测试的 verbose 模式 + cap > 100 行输出 + 禁止 cat 大日志 + 项目配置优先规则。整段是通用规则，所有 stage（RED/GREEN/REFACTOR/done 回归）都适用
+
+### Changed
+
+- **`loop.md` RED/GREEN/Phase 2 完成处加 frugality 引用** — Coder 跑测试时默认套 silent；失败时只 verbose re-run 失败 test；不要 verbose 跑全量
+- **`done.md` Stage 1 commands 表后加 frugality 说明** — Stage 1 跑 `commands.unit` / `commands.integration` 时默认套 silent flag（具体框架的 flag 见 SKILL.md），回归输出从几百 KB 砍到几行 summary
+
+### Rationale
+
+v3.12.x 实测一个 feature 全周期 token 拆分（yunyin 3 天 1455 turn）：
+
+```
+cache_creation  $1812  65%   ← 最大头
+cache_read       $846  30%
+output           $140   5%
+fresh input        ~0   0%
+```
+
+cache_creation 之所以占大头，主因是每次跑测试输出几百 KB 日志回到 context → cache 失效 → 下个 turn 重建 cache。一个典型 TDD 周期跑 200+ 次测试，verbose 输出每次累加，光这一块就 $300+。
+
+本版把"默认 silent"写进规则，main agent / Coder / Tester 跑测试时第一次就走 silent flag，输出从 "全量 stack trace + 每个测试名" 砍到 "N passed, M failed, time" 一行。失败时只 verbose re-run 失败那一个 test 看 stack。预期下次 feature 周期 cache_creation 减半甚至更多
+
+### Compatibility
+
+向后兼容：旧 `tdd-specs/.verify/project.md` 里如果 `commands.unit` 已经写成 verbose 命令，main agent 应识别并按 SKILL.md 规则 1（自动加 silent flag）调整；如果用户显式偏好 verbose（少见），可在 project.md 里写明，main agent 会尊重显式配置（规则 5）。`npx tdd-workflow@3.13.1 update` 自动覆盖 SKILL.md / loop.md / done.md，无需手工编辑
+
 ## [3.13.0] — 2026-06-08
 
 ### Added

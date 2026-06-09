@@ -102,7 +102,7 @@ If at any step the independence check finds **<2 independent UCs**, fall back to
    - Do NOT write any implementation code
    - Do NOT modify any files in src/ or lib/ — only test files
 
-   After writing the test, run it using the project's test command.
+   After writing the test, run it using the project's test command (apply `Test Output Frugality` from SKILL.md — default silent flags; only re-run the failing test with `--verbose` / `-vv` when something fails).
    Report back: (1) test file path, (2) test name, (3) exact failure message.
    ```
 
@@ -150,7 +150,7 @@ If at any step the independence check finds **<2 independent UCs**, fall back to
    - Do NOT modify any test files
    - Follow the project's existing code conventions and patterns
 
-   After writing code, run the FULL test suite (not just the new test).
+   After writing code, run the FULL test suite (not just the new test) — apply `Test Output Frugality` from SKILL.md (silent flags by default; verbose re-run only on failure).
    Report back: (1) files created/modified, (2) full test suite result, (3) any regressions.
    ```
 
@@ -215,7 +215,7 @@ If at any step the independence check finds **<2 independent UCs**, fall back to
 
 5. **After Phase 2 all green**:
 
-   Run full test suite (project's actual command).
+   Run full test suite (project's actual command). **Apply `Test Output Frugality` (SKILL.md)** — silent flags by default. The final regression run should produce a single summary line, not a multi-screen test log.
    Output Phase 2 completion report, prompt to run `/tdd:e2e`.
 
 **Guardrails**
