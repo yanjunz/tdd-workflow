@@ -7,7 +7,7 @@ description: >
 user-invocable: true
 allowed-tools: "Read, Write, Edit, Bash, Glob, Grep, Agent, TeamCreate"
 metadata:
-  version: "3.13.0"
+  version: "3.13.1"
   compatible: "claude-code, codex, cursor, cline, windsurf, codebuddy, github-copilot"
   hooks: "Installed to .claude/hooks/tdd/ via tdd-workflow init. See .claude/settings.json for registration."
 ---
@@ -57,6 +57,34 @@ Adapt all subsequent commands based on detection results:
 - **Test directories**: `test/` / `tests/` / `__tests__/` / `spec/` etc.
 - **Source directories**: **read from `tdd-specs/.verify/project.md` → `paths.src_dirs`** (may be multiple paths for monorepos). Fall back to detection results if not configured.
 - **Source directories**: `src/` / `app/` / `lib/` etc.
+
+---
+
+## Test Output Frugality (token-saving)
+
+Test runs are the biggest cache-invalidation driver in TDD. A single default-verbose `npm test` can emit hundreds of KB of output, blowing away the prompt cache and burning $1+ per re-build. Apply silent / minimal output by default; only re-run with details when a test fails.
+
+**Per-framework default flags** (use silent unless `tdd-specs/.verify/project.md` already specifies a quieter command):
+
+| Framework | Default (silent) | On failure (re-run only the failing test) |
+|---|---|---|
+| jest | `npx jest --silent --reporters=summary` | `npx jest <test-name> --verbose` |
+| vitest | `npx vitest run --reporter=dot` | `npx vitest run <test-name> --reporter=verbose` |
+| pytest | `pytest -q --tb=line --no-header` | `pytest <test-name> -vv --tb=long` |
+| go test | `go test ./... -count=1` (Go is quiet by default) | `go test -v -run <test-name> <pkg>` |
+| cargo test | `cargo test --quiet` | `cargo test <test-name> -- --nocapture` |
+| mocha | `npx mocha --reporter=min` | `npx mocha --reporter=spec <test-file>` |
+| maven | `mvn test -q` | `mvn test -Dtest=<test-name>` |
+
+**Rules** (applied by main agent / Coder / Tester whenever running tests):
+
+1. **Default silent**: every RED test run, every GREEN full-suite run, and every `/tdd:done` regression run starts with the silent flags above. Expected output: a single summary line ("N passed, M failed, time").
+2. **Re-run only the failure verbose**: when a test fails in silent mode, re-run **only the failing test name** with verbose flags to get the stack trace. Do not re-run the full suite verbose.
+3. **Cap large outputs**: if a command emits > 100 lines of stdout, pipe to `| tail -100` (or `| head -50; echo ...; tail -50`) before reading the result. Never read a multi-MB CI log fully into context.
+4. **Don't `cat` log files**: `grep -E 'FAIL|Error' test.log | head -30` is almost always what you actually wanted.
+5. **Per-project override**: if `tdd-specs/.verify/project.md` declares `commands.unit` already with silent flags, use it as-is. The defaults above are the floor, not a mandate to overwrite explicit config.
+
+**Why this matters**: in a typical TDD cycle (200+ test runs across a feature), default-verbose can add several hundred dollars in cache_creation tokens vs default-silent — see CHANGELOG 3.13.1 rationale for the measured driver.
 
 ---
 
